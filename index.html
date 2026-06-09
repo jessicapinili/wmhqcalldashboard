@@ -105,6 +105,10 @@
   .q-cover { flex-shrink:0; font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:600; color:var(--muted); border:1px solid #ddd2d2; padding:7px 14px; border-radius:100px; cursor:pointer; background:#fff; white-space:nowrap; transition:all .15s; }
   .q-card.covered { opacity:0.5; }
   .q-card.covered .q-cover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .q-points { margin-top:13px; display:flex; flex-direction:column; gap:8px; }
+  .q-point { display:flex; gap:11px; align-items:flex-start; font-size:14px; color:#5a5050; line-height:1.5; }
+  .q-point .dotb { width:5px; height:5px; border-radius:50%; background:var(--accent); flex-shrink:0; margin-top:8px; }
+  .elabel { font-size:11px; letter-spacing:0.5px; color:var(--muted); margin-top:12px; margin-bottom:6px; }
   .empty { font-size:14px; color:#b6abab; font-style:italic; margin-top:20px; }
 
   .find-list { margin-top:20px; display:flex; flex-direction:column; gap:12px; }
@@ -233,7 +237,7 @@
           "Next week is the Subconscious Mastery call, same time."
         ],
         questions: [
-          { name: "Member name", q: "Their submitted question goes here." },
+          { name: "Member name", q: "Their submitted question goes here.", points: "A supporting point you want to raise\nAnother angle or follow-up\nThe takeaway for the group" },
           { name: "Member name", q: "Second submitted question." }
         ],
         findings: [
@@ -369,9 +373,10 @@
     if (editing) {
       arr.forEach((item, i) => {
         const box = document.createElement('div'); box.className = 'qedit';
-        box.innerHTML = '<div class="qedit-top"><div class="grow"><input class="efield name" value="' + esc(item.name) + '" placeholder="Member name"><textarea class="efield" rows="2" placeholder="Their question">' + esc(item.q) + '</textarea></div><button class="del">&times;</button></div>';
+        box.innerHTML = '<div class="qedit-top"><div class="grow"><input class="efield name" value="' + esc(item.name) + '" placeholder="Member name"><textarea class="efield qtext" rows="2" placeholder="Their question">' + esc(item.q) + '</textarea><div class="elabel">Supporting points (one per line)</div><textarea class="efield qpts" rows="3" placeholder="One point per line">' + esc(item.points || "") + '</textarea></div><button class="del">&times;</button></div>';
         box.querySelector('.name').addEventListener('input', e => cur().questions[i].name = e.target.value);
-        box.querySelector('textarea').addEventListener('input', e => cur().questions[i].q = e.target.value);
+        box.querySelector('.qtext').addEventListener('input', e => cur().questions[i].q = e.target.value);
+        box.querySelector('.qpts').addEventListener('input', e => cur().questions[i].points = e.target.value);
         box.querySelector('.del').addEventListener('click', () => { cur().questions.splice(i,1); renderQuestions(); });
         slot.appendChild(box);
       });
@@ -383,7 +388,9 @@
       const list = document.createElement('div'); list.className = 'q-list';
       arr.forEach(item => {
         const card = document.createElement('div'); card.className = 'q-card';
-        card.innerHTML = '<div><div class="who">' + esc(item.name) + '</div><div class="body">' + esc(item.q) + '</div></div><button class="q-cover">Mark covered</button>';
+        const pts = (item.points || "").split('\n').map(s => s.trim()).filter(Boolean);
+        const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + esc(p) + '</span></div>').join('') + '</div>' : '';
+        card.innerHTML = '<div class="qmain"><div class="who">' + esc(item.name) + '</div><div class="body">' + esc(item.q) + '</div>' + ptsHtml + '</div><button class="q-cover">Mark covered</button>';
         card.querySelector('.q-cover').addEventListener('click', () => {
           card.classList.toggle('covered');
           card.querySelector('.q-cover').textContent = card.classList.contains('covered') ? 'Covered' : 'Mark covered';
