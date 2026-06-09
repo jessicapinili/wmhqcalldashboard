@@ -21,7 +21,7 @@
 
   body { font-family:'DM Sans', sans-serif; background:var(--bg); color:var(--body); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-  /* ---------- ACCESS GATE ---------- */
+  /* ACCESS GATE */
   .gate { position:fixed; inset:0; z-index:100; background:linear-gradient(160deg, var(--darkred) 0%, var(--merlot) 100%); display:flex; align-items:center; justify-content:center; padding:30px; }
   .gate.hidden { display:none; }
   .gate-inner { width:100%; max-width:380px; text-align:center; }
@@ -34,7 +34,7 @@
   .gate-btn:hover { opacity:0.9; }
   .gate-err { font-size:12px; color:#E8A9B0; margin-top:16px; min-height:16px; letter-spacing:0.3px; }
 
-  /* ---------- APP ---------- */
+  /* APP */
   .app { display:flex; min-height:100vh; }
   .app.hidden { display:none; }
 
@@ -99,26 +99,39 @@
   .brief-item.done .tick svg { opacity:1; }
   .brief-item.done .txt { color:#b4abab; text-decoration:line-through; }
 
+  /* QUESTIONS (accordion + type tags) */
   .q-list { margin-top:22px; display:flex; flex-direction:column; gap:14px; }
-  .q-card { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; border:1px solid var(--line); padding:18px 20px; transition:opacity .15s; }
+  .q-card { border:1px solid var(--line); transition:opacity .15s; }
+  .q-head { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 20px; cursor:pointer; }
+  .q-head:hover { background:#fbf9f9; }
+  .q-head-left { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .chev { color:#bcaeae; display:flex; transition:transform .18s; }
+  .chev svg { width:13px; height:13px; }
+  .q-card.open .chev { transform:rotate(90deg); }
   .q-card .who { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--accent); font-weight:700; }
-  .q-card .body { font-size:15px; color:#433b3b; line-height:1.5; margin-top:7px; }
+  .qtag { font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; padding:4px 11px; border-radius:100px; border:1px solid; }
+  .qtag.business { background:#EAF1E7; border-color:#CADFC4; color:#496B43; }
+  .qtag.subconscious { background:#EFE8F3; border-color:#DBCBE6; color:#6A4E7C; }
+  .q-detail { display:none; padding:0 20px 20px 44px; }
+  .q-card.open .q-detail { display:block; }
+  .q-detail .body { font-size:15px; color:#433b3b; line-height:1.5; }
   .q-cover { flex-shrink:0; font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:600; color:var(--muted); border:1px solid #ddd2d2; padding:7px 14px; border-radius:100px; cursor:pointer; background:#fff; white-space:nowrap; transition:all .15s; }
   .q-card.covered { opacity:0.5; }
   .q-card.covered .q-cover { background:var(--accent); border-color:var(--accent); color:#fff; }
   .q-points { margin-top:13px; display:flex; flex-direction:column; gap:8px; }
   .q-point { display:flex; gap:11px; align-items:flex-start; font-size:14px; color:#5a5050; line-height:1.5; }
   .q-point .dotb { width:5px; height:5px; border-radius:50%; background:var(--accent); flex-shrink:0; margin-top:8px; }
-  .elabel { font-size:11px; letter-spacing:0.5px; color:var(--muted); margin-top:12px; margin-bottom:6px; }
   .empty { font-size:14px; color:#b6abab; font-style:italic; margin-top:20px; }
 
   .find-list { margin-top:20px; display:flex; flex-direction:column; gap:12px; }
   .find-item { display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#4a4242; line-height:1.5; }
   .find-item .mk { color:var(--accent); font-weight:700; flex-shrink:0; }
 
+  /* EDIT FIELDS */
   .efield { font-family:'DM Sans',sans-serif; font-size:15px; color:#3a3232; width:100%; background:#faf7f7; border:1px solid #e3d9d9; padding:11px 13px; line-height:1.45; resize:vertical; }
   .efield:focus { outline:none; border-color:var(--accent); background:#fff; }
   .efield.name { font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .elabel { font-size:11px; letter-spacing:0.5px; color:var(--muted); margin-top:12px; margin-bottom:6px; }
   .erow { display:flex; gap:10px; align-items:flex-start; margin-top:10px; }
   .erow .grow { flex:1; }
   .del { flex-shrink:0; width:32px; height:32px; border:1px solid #e3d9d9; background:#fff; color:#b09a9a; font-size:18px; line-height:1; cursor:pointer; border-radius:50%; transition:all .15s; }
@@ -126,6 +139,10 @@
   .qedit { border:1px solid #eee3e3; padding:16px; margin-top:12px; }
   .qedit-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .qedit-top .grow { flex:1; }
+  .qtype-row { display:flex; gap:8px; margin-top:6px; }
+  .qtype-btn { font-size:11px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600; padding:8px 14px; border-radius:100px; border:1px solid #ddd2d2; background:#fff; color:var(--muted); cursor:pointer; transition:all .15s; }
+  .qtype-btn.business.sel { background:#EAF1E7; border-color:#CADFC4; color:#496B43; }
+  .qtype-btn.subconscious.sel { background:#EFE8F3; border-color:#DBCBE6; color:#6A4E7C; }
   .addbtn { margin-top:16px; font-family:'DM Sans',sans-serif; font-size:12px; letter-spacing:1px; font-weight:600; text-transform:uppercase; color:var(--accent); background:transparent; border:1px dashed var(--border-active); padding:11px 18px; cursor:pointer; width:100%; transition:all .15s; }
   .addbtn:hover { background:var(--tint); }
 
@@ -142,7 +159,6 @@
 </head>
 <body data-call="mastermind" data-mode="view">
 
-  <!-- ACCESS GATE -->
   <div class="gate" id="gate">
     <div class="gate-inner">
       <div class="gate-mark">WOMAN MASTERY HQ</div>
@@ -154,7 +170,6 @@
     </div>
   </div>
 
-  <!-- APP -->
   <div class="app hidden" id="app">
     <aside class="sidebar">
       <div class="side-block">
@@ -171,8 +186,9 @@
         <div class="side-label">QUICK LINKS</div>
         <nav class="side-links">
           <a class="side-link" href="https://www.womanmasteryhqportal.com" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>WMHQ Personal Portal</a>
-          <a class="side-link" href="https://www.figma.com/board/JK5iie1pw72MpP14M3VJ75/Subconscious-Identity-Complete-Diagram?t=qEyHkUcvlwlVSGBp-0" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Figma Sub.Identity</a>
           <a class="side-link" href="https://www.jessicapinili.com/products/communities/v2/womanmasteryhq/channel/b310547b-5d2a-494c-b862-7b393bec76ff?type=forum" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>WMHQ Community</a>
+          <a class="side-link" href="https://www.figma.com/board/JK5iie1pw72MpP14M3VJ75/Subconscious-Identity-Complete-Diagram?t=qEyHkUcvlwlVSGBp-0" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Figma Sub.Identity</a>
+          <a class="side-link" href="https://www.figma.com/board/aNIlYsOTGAcOkQQVz9wTOH/Business-WMHQ?node-id=0-1&amp;p=f&amp;t=Jy7EvAC3mU8CZNKm-0" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Figma Biz</a>
         </nav>
       </div>
       <div class="side-foot" id="lockBtn">LOCK DASHBOARD</div>
@@ -225,7 +241,7 @@
   /* 1) ACCESS CODE (soft gate; public source is readable on GitHub) */
   const ACCESS_CODE = "wmhq0109";
 
-  /* 2) DEFAULT CONTENT PER CALL (first run only; edits are saved per call after that) */
+  /* 2) DEFAULT CONTENT PER CALL (first run only; saved edits load over this) */
   const DEFAULTS = {
     callType: "mastermind",
     byCall: {
@@ -238,8 +254,8 @@
           "Next week is the Subconscious Mastery call, same time."
         ],
         questions: [
-          { name: "Member name", q: "Their submitted question goes here.", points: "A supporting point you want to raise\nAnother angle or follow-up\nThe takeaway for the group" },
-          { name: "Member name", q: "Second submitted question." }
+          { name: "Member name", q: "Their submitted question goes here.", points: "A supporting point you want to raise\nAnother angle or follow-up\nThe takeaway for the group", type: "business" },
+          { name: "Member name", q: "Second submitted question.", type: "subconscious" }
         ],
         findings: [
           "A strategy pattern across this week's submissions.",
@@ -255,8 +271,7 @@
           "Next week is the Combined call, same time."
         ],
         questions: [
-          { name: "Member name", q: "Their submitted question goes here." },
-          { name: "Member name", q: "Second submitted question." }
+          { name: "Member name", q: "Their submitted question goes here.", type: "subconscious" }
         ],
         findings: [
           "A recurring block showing up across submissions.",
@@ -272,8 +287,8 @@
           "Next week resets to Business Mastermind."
         ],
         questions: [
-          { name: "Member name", q: "Their submitted question goes here." },
-          { name: "Member name", q: "Second submitted question." }
+          { name: "Member name", q: "A business question for this call.", type: "business" },
+          { name: "Member name", q: "A subconscious question for this call.", type: "subconscious" }
         ],
         findings: [
           "Where strategy and identity are colliding this week.",
@@ -292,13 +307,13 @@
   const STORAGE_KEY = "wmhq_call_dashboard";
   const UNLOCK_KEY  = "wmhq_dash_unlocked";
   const tickSVG = '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2L4.6 9 10 3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const chevSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
   let data = JSON.parse(JSON.stringify(DEFAULTS));
   let editing = false;
   const esc = s => (s == null ? "" : String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const cur = () => data.byCall[data.callType];
 
-  /* storage adapter: Claude -> window.storage, GitHub -> localStorage */
   async function storeGet(key) {
     if (window.storage && window.storage.get) { try { const r = await window.storage.get(key, false); return r ? r.value : null; } catch(e) { return null; } }
     try { return localStorage.getItem(key); } catch(e) { return null; }
@@ -368,38 +383,61 @@
     const done = document.querySelectorAll('.q-card.covered').length;
     document.getElementById('qCounter').textContent = done + ' of ' + total + ' covered';
   }
+
   function renderQuestions() {
     const slot = document.getElementById('qSlot'); slot.innerHTML = '';
     const arr = cur().questions;
     if (editing) {
       arr.forEach((item, i) => {
+        const type = (item.type === 'subconscious') ? 'subconscious' : 'business';
         const box = document.createElement('div'); box.className = 'qedit';
-        box.innerHTML = '<div class="qedit-top"><div class="grow"><input class="efield name" value="' + esc(item.name) + '" placeholder="Member name"><textarea class="efield qtext" rows="2" placeholder="Their question">' + esc(item.q) + '</textarea><div class="elabel">Supporting points (one per line)</div><textarea class="efield qpts" rows="3" placeholder="One point per line">' + esc(item.points || "") + '</textarea></div><button class="del">&times;</button></div>';
+        box.innerHTML = '<div class="qedit-top"><div class="grow">'
+          + '<input class="efield name" value="' + esc(item.name) + '" placeholder="Member name">'
+          + '<textarea class="efield qtext" rows="2" placeholder="Their question">' + esc(item.q) + '</textarea>'
+          + '<div class="elabel">Supporting points (one per line)</div>'
+          + '<textarea class="efield qpts" rows="3" placeholder="One point per line">' + esc(item.points || "") + '</textarea>'
+          + '<div class="elabel">Question type</div>'
+          + '<div class="qtype-row">'
+          + '<button class="qtype-btn business' + (type === 'business' ? ' sel' : '') + '" data-t="business">Business</button>'
+          + '<button class="qtype-btn subconscious' + (type === 'subconscious' ? ' sel' : '') + '" data-t="subconscious">Subconscious</button>'
+          + '</div>'
+          + '</div><button class="del">&times;</button></div>';
         box.querySelector('.name').addEventListener('input', e => cur().questions[i].name = e.target.value);
         box.querySelector('.qtext').addEventListener('input', e => cur().questions[i].q = e.target.value);
         box.querySelector('.qpts').addEventListener('input', e => cur().questions[i].points = e.target.value);
+        box.querySelectorAll('.qtype-btn').forEach(btn => btn.addEventListener('click', () => {
+          cur().questions[i].type = btn.dataset.t;
+          box.querySelectorAll('.qtype-btn').forEach(b => b.classList.toggle('sel', b.dataset.t === btn.dataset.t));
+        }));
         box.querySelector('.del').addEventListener('click', () => { cur().questions.splice(i,1); renderQuestions(); });
         slot.appendChild(box);
       });
       const add = document.createElement('button'); add.className = 'addbtn'; add.textContent = '+ Add question';
-      add.addEventListener('click', () => { cur().questions.push({name:"", q:""}); renderQuestions(); });
+      add.addEventListener('click', () => { cur().questions.push({ name:"", q:"", points:"", type:"business" }); renderQuestions(); });
       slot.appendChild(add);
     } else {
       if (arr.length === 0) { slot.innerHTML = '<div class="empty">No questions submitted for this call yet.</div>'; updateCounter(); return; }
       const list = document.createElement('div'); list.className = 'q-list';
       arr.forEach(item => {
-        const card = document.createElement('div'); card.className = 'q-card';
+        const type = (item.type === 'subconscious') ? 'subconscious' : 'business';
+        const typeLabel = type === 'subconscious' ? 'Subconscious' : 'Business';
         const pts = (item.points || "").split('\n').map(s => s.trim()).filter(Boolean);
         const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + esc(p) + '</span></div>').join('') + '</div>' : '';
-        card.innerHTML = '<div class="qmain"><div class="who">' + esc(item.name) + '</div><div class="body">' + esc(item.q) + '</div>' + ptsHtml + '</div><button class="q-cover">Mark covered</button>';
-        card.querySelector('.q-cover').addEventListener('click', () => {
+        const card = document.createElement('div'); card.className = 'q-card';
+        card.innerHTML = '<div class="q-head"><div class="q-head-left"><span class="chev">' + chevSVG + '</span><span class="who">' + esc(item.name) + '</span><span class="qtag ' + type + '">' + typeLabel + '</span></div><button class="q-cover">Mark covered</button></div>'
+          + '<div class="q-detail"><div class="body">' + esc(item.q) + '</div>' + ptsHtml + '</div>';
+        card.querySelector('.q-head').addEventListener('click', () => card.classList.toggle('open'));
+        const coverBtn = card.querySelector('.q-cover');
+        coverBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
           card.classList.toggle('covered');
-          card.querySelector('.q-cover').textContent = card.classList.contains('covered') ? 'Covered' : 'Mark covered';
+          coverBtn.textContent = card.classList.contains('covered') ? 'Covered' : 'Mark covered';
           updateCounter();
         });
         list.appendChild(card);
       });
-      slot.appendChild(list); updateCounter();
+      slot.appendChild(list);
+      updateCounter();
     }
   }
 
@@ -450,8 +488,8 @@
     document.getElementById('gate').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     await loadData();
-    setCall(data.callType || 'mastermind', false);
     bindApp();
+    setCall(data.callType || 'mastermind', false);
   }
 
   function tryCode() {
