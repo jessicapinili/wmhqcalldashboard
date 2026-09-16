@@ -114,7 +114,7 @@
   .qtag.subconscious { background:#EBD0FF; border-color:#EBD0FF; color:#270707; }
   .q-detail { display:none; padding:0 20px 20px 44px; }
   .q-card.open .q-detail { display:block; }
-  .q-detail .body { font-size:15px; color:#433b3b; line-height:1.5; }
+  .q-detail .body { font-size:15px; color:#433b3b; line-height:1.6; white-space:pre-line; }
   .q-cover { flex-shrink:0; font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:600; color:var(--muted); border:1px solid #ddd2d2; padding:7px 14px; border-radius:100px; cursor:pointer; background:#fff; white-space:nowrap; transition:all .15s; }
   .q-card.covered { opacity:0.5; }
   .q-card.covered .q-cover { background:var(--accent); border-color:var(--accent); color:#fff; }
@@ -393,7 +393,7 @@
         const box = document.createElement('div'); box.className = 'qedit';
         box.innerHTML = '<div class="qedit-top"><div class="grow">'
           + '<input class="efield name" value="' + esc(item.name) + '" placeholder="Member name">'
-          + '<textarea class="efield qtext" rows="2" placeholder="Their question">' + esc(item.q) + '</textarea>'
+          + '<textarea class="efield qtext" rows="4" placeholder="Their question (press Enter for a new line, twice for a space)">' + esc(item.q) + '</textarea>'
           + '<div class="elabel">Supporting points (one per line)</div>'
           + '<textarea class="efield qpts" rows="3" placeholder="One point per line">' + esc(item.points || "") + '</textarea>'
           + '<div class="elabel">Question type</div>'
