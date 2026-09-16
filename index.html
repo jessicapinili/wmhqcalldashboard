@@ -100,6 +100,17 @@
   .brief-item.done .tick svg { opacity:1; }
   .brief-item.done .txt { color:#b4abab; text-decoration:line-through; }
 
+  .bcontent { flex:1; min-width:0; }
+  .bimg { display:block; max-width:100%; max-height:360px; margin-top:12px; border-radius:12px; border:1px solid var(--line); cursor:zoom-in; }
+  .brief-item.done .bimg { opacity:0.45; }
+  .bedit { border:1px solid #eee3e3; border-radius:14px; padding:14px; margin-top:12px; }
+  .bimg-edit { margin-top:10px; }
+  .bimg-edit img { display:block; max-width:100%; max-height:220px; border-radius:10px; border:1px solid var(--line); }
+  .imgbtn { display:inline-block; margin-top:10px; margin-right:8px; font-family:'DM Sans',sans-serif; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600; padding:8px 14px; border-radius:100px; border:1px solid #ddd2d2; background:#fff; color:var(--muted); cursor:pointer; transition:all .15s; }
+  .imgbtn:hover { color:var(--ink); border-color:#c9bcbc; }
+  .lightbox { position:fixed; inset:0; z-index:200; background:rgba(39,7,7,0.88); display:flex; align-items:center; justify-content:center; padding:30px; cursor:zoom-out; }
+  .lightbox img { max-width:100%; max-height:100%; border-radius:12px; }
+
   /* QUESTIONS (accordion + type tags) */
   .q-list { margin-top:22px; display:flex; flex-direction:column; gap:14px; }
   .q-card { border:1px solid var(--line); border-radius:14px; overflow:hidden; transition:opacity .15s; }
@@ -322,7 +333,7 @@
   }
   async function storeSet(key, val) {
     if (window.storage && window.storage.set) { try { await window.storage.set(key, val, false); return; } catch(e) {} }
-    try { localStorage.setItem(key, val); } catch(e) {}
+    try { localStorage.setItem(key, val); } catch(e) { alert('Could not save. Your images may be too large for this browser. Try removing an image or using a smaller screenshot.'); }
   }
   async function storeDel(key) {
     if (window.storage && window.storage.delete) { try { await window.storage.delete(key, false); return; } catch(e) {} }
@@ -354,16 +365,66 @@
     }
   }
 
+  /* Briefing items can be plain text or { text, img } */
+  const bText = it => (it && typeof it === 'object') ? (it.text || "") : (it || "");
+  const bImg  = it => (it && typeof it === 'object') ? (it.img || "") : "";
+  function setBrief(i, patch) {
+    const it = cur().briefing[i];
+    const obj = { text: bText(it), img: bImg(it) };
+    Object.assign(obj, patch);
+    cur().briefing[i] = obj.img ? obj : obj.text;
+  }
+  function shrinkImage(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onerror = rej;
+      r.onload = () => {
+        const im = new Image();
+        im.onerror = rej;
+        im.onload = () => {
+          const max = 1400; let w = im.width, h = im.height;
+          if (w > max || h > max) { const k = max / Math.max(w, h); w = Math.round(w*k); h = Math.round(h*k); }
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(im, 0, 0, w, h);
+          res(c.toDataURL('image/jpeg', 0.82));
+        };
+        im.src = r.result;
+      };
+      r.readAsDataURL(file);
+    });
+  }
+  function openLightbox(src) {
+    const lb = document.createElement('div'); lb.className = 'lightbox';
+    lb.innerHTML = '<img src="' + src + '" alt="">';
+    lb.addEventListener('click', () => lb.remove());
+    document.body.appendChild(lb);
+  }
+
   function renderBriefing() {
     const slot = document.getElementById('briefSlot'); slot.innerHTML = '';
     const arr = cur().briefing;
     if (editing) {
       arr.forEach((item, i) => {
-        const row = document.createElement('div'); row.className = 'erow';
-        row.innerHTML = '<textarea class="efield grow" rows="3" placeholder="Update (press Enter for a new line, twice for a space)">' + esc(item) + '</textarea><button class="del">&times;</button>';
-        row.querySelector('textarea').addEventListener('input', e => cur().briefing[i] = e.target.value);
-        row.querySelector('.del').addEventListener('click', () => { cur().briefing.splice(i,1); renderBriefing(); });
-        slot.appendChild(row);
+        const wrap = document.createElement('div'); wrap.className = 'bedit';
+        const img = bImg(item);
+        wrap.innerHTML = '<div class="erow" style="margin-top:0"><textarea class="efield grow" rows="3" placeholder="Update (press Enter for a new line, twice for a space). You can also paste a screenshot here.">' + esc(bText(item)) + '</textarea><button class="del">&times;</button></div>'
+          + (img ? '<div class="bimg-edit"><img src="' + img + '" alt=""><button class="imgbtn remove">Remove image</button></div>' : '')
+          + '<label class="imgbtn">' + (img ? 'Replace image' : '+ Add image') + '<input type="file" accept="image/*" hidden></label>';
+        const ta = wrap.querySelector('textarea');
+        ta.addEventListener('input', e => setBrief(i, { text: e.target.value }));
+        const addImg = async file => {
+          if (!file || !file.type.startsWith('image/')) return;
+          try { setBrief(i, { img: await shrinkImage(file) }); renderBriefing(); } catch(e) { alert('That image could not be loaded. Try a PNG or JPG.'); }
+        };
+        ta.addEventListener('paste', e => {
+          const f = [...(e.clipboardData ? e.clipboardData.files : [])].find(x => x.type.startsWith('image/'));
+          if (f) { e.preventDefault(); addImg(f); }
+        });
+        wrap.querySelector('input[type=file]').addEventListener('change', e => addImg(e.target.files[0]));
+        const rm = wrap.querySelector('.remove');
+        if (rm) rm.addEventListener('click', () => { setBrief(i, { img: "" }); renderBriefing(); });
+        wrap.querySelector('.del').addEventListener('click', () => { cur().briefing.splice(i,1); renderBriefing(); });
+        slot.appendChild(wrap);
       });
       const add = document.createElement('button'); add.className = 'addbtn'; add.textContent = '+ Add update';
       add.addEventListener('click', () => { cur().briefing.push(""); renderBriefing(); });
@@ -372,8 +433,12 @@
       const list = document.createElement('div'); list.className = 'brief-list';
       arr.forEach(item => {
         const row = document.createElement('div'); row.className = 'brief-item';
-        row.innerHTML = '<div class="tick">' + tickSVG + '</div><div class="txt">' + esc(item) + '</div>';
+        const img = bImg(item);
+        row.innerHTML = '<div class="tick">' + tickSVG + '</div><div class="bcontent"><div class="txt">' + esc(bText(item)) + '</div>'
+          + (img ? '<img class="bimg" src="' + img + '" alt="">' : '') + '</div>';
         row.addEventListener('click', () => row.classList.toggle('done'));
+        const im = row.querySelector('.bimg');
+        if (im) im.addEventListener('click', e => { e.stopPropagation(); openLightbox(img); });
         list.appendChild(row);
       });
       slot.appendChild(list);
@@ -443,16 +508,38 @@
     }
   }
 
+  function setFind(i, patch) {
+    const it = cur().findings[i];
+    const obj = { text: bText(it), img: bImg(it) };
+    Object.assign(obj, patch);
+    cur().findings[i] = obj.img ? obj : obj.text;
+  }
+
   function renderFindings() {
     const slot = document.getElementById('findSlot'); slot.innerHTML = '';
     const arr = cur().findings;
     if (editing) {
       arr.forEach((item, i) => {
-        const row = document.createElement('div'); row.className = 'erow';
-        row.innerHTML = '<textarea class="efield grow" rows="3" placeholder="Finding (press Enter for a new line, twice for a space)">' + esc(item) + '</textarea><button class="del">&times;</button>';
-        row.querySelector('textarea').addEventListener('input', e => cur().findings[i] = e.target.value);
-        row.querySelector('.del').addEventListener('click', () => { cur().findings.splice(i,1); renderFindings(); });
-        slot.appendChild(row);
+        const wrap = document.createElement('div'); wrap.className = 'bedit';
+        const img = bImg(item);
+        wrap.innerHTML = '<div class="erow" style="margin-top:0"><textarea class="efield grow" rows="3" placeholder="Finding (press Enter for a new line, twice for a space). You can also paste a screenshot here.">' + esc(bText(item)) + '</textarea><button class="del">&times;</button></div>'
+          + (img ? '<div class="bimg-edit"><img src="' + img + '" alt=""><button class="imgbtn remove">Remove image</button></div>' : '')
+          + '<label class="imgbtn">' + (img ? 'Replace image' : '+ Add image') + '<input type="file" accept="image/*" hidden></label>';
+        const ta = wrap.querySelector('textarea');
+        ta.addEventListener('input', e => setFind(i, { text: e.target.value }));
+        const addImg = async file => {
+          if (!file || !file.type.startsWith('image/')) return;
+          try { setFind(i, { img: await shrinkImage(file) }); renderFindings(); } catch(e) { alert('That image could not be loaded. Try a PNG or JPG.'); }
+        };
+        ta.addEventListener('paste', e => {
+          const f = [...(e.clipboardData ? e.clipboardData.files : [])].find(x => x.type.startsWith('image/'));
+          if (f) { e.preventDefault(); addImg(f); }
+        });
+        wrap.querySelector('input[type=file]').addEventListener('change', e => addImg(e.target.files[0]));
+        const rm = wrap.querySelector('.remove');
+        if (rm) rm.addEventListener('click', () => { setFind(i, { img: "" }); renderFindings(); });
+        wrap.querySelector('.del').addEventListener('click', () => { cur().findings.splice(i,1); renderFindings(); });
+        slot.appendChild(wrap);
       });
       const add = document.createElement('button'); add.className = 'addbtn'; add.textContent = '+ Add theme';
       add.addEventListener('click', () => { cur().findings.push(""); renderFindings(); });
@@ -462,7 +549,11 @@
       const list = document.createElement('div'); list.className = 'find-list';
       arr.forEach(item => {
         const row = document.createElement('div'); row.className = 'find-item';
-        row.innerHTML = '<span class="mk">&rarr;</span><span>' + esc(item) + '</span>';
+        const img = bImg(item);
+        row.innerHTML = '<span class="mk">&rarr;</span><div class="bcontent"><div>' + esc(bText(item)) + '</div>'
+          + (img ? '<img class="bimg" src="' + img + '" alt="">' : '') + '</div>';
+        const im = row.querySelector('.bimg');
+        if (im) im.addEventListener('click', () => openLightbox(img));
         list.appendChild(row);
       });
       slot.appendChild(list);
