@@ -114,6 +114,9 @@
   .fmtbar { display:flex; align-items:center; gap:6px; margin:10px 0 6px; }
   .fmtbar button { width:30px; height:30px; border-radius:50%; border:1px solid #ddd2d2; background:#fff; color:var(--ink); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; }
   .fmtbar button svg { display:block; margin:auto; }
+  .linkbox { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 8px; padding:10px 12px; background:var(--tint); border-radius:12px; }
+  .linkbox .linkinput { flex:1; min-width:180px; padding:8px 12px; border-radius:100px; }
+  .linkbox .imgbtn { margin:0; }
   a.tlink, a.tlink:visited { color:var(--accent); text-decoration:underline; text-underline-offset:3px; font-weight:600; }
   a.tlink:hover { color:var(--accent-deep); }
   .fmtbar button:hover { background:var(--tint); border-color:var(--border-active); }
@@ -597,17 +600,35 @@
     ta.dispatchEvent(new Event('input', { bubbles:true }));
   }
   function applyLink(ta) {
-    const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
-    let label = v.slice(a, b);
-    let url = prompt('Paste the link (URL):', 'https://');
-    if (!url || url === 'https://') return;
-    url = url.trim();
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    if (!label) label = prompt('Text to show for the link:', '') || url;
-    const ins = '[' + label + '](' + url + ')';
-    ta.value = v.slice(0,a) + ins + v.slice(b);
-    ta.focus(); ta.setSelectionRange(a + ins.length, a + ins.length);
-    ta.dispatchEvent(new Event('input', { bubbles:true }));
+    const a = ta.selectionStart, b = ta.selectionEnd;
+    const bar = ta._fmtbar;
+    const old = bar.nextElementSibling && bar.nextElementSibling.classList.contains('linkbox') ? bar.nextElementSibling : null;
+    if (old) old.remove();
+    if (a === b) {
+      const warn = document.createElement('div'); warn.className = 'linkbox';
+      warn.innerHTML = '<span class="fmthint" style="margin:0">Highlight the words you want to turn into a link first.</span>';
+      bar.after(warn); setTimeout(() => warn.remove(), 2500); return;
+    }
+    const label = ta.value.slice(a, b);
+    const box = document.createElement('div'); box.className = 'linkbox';
+    box.innerHTML = '<span class="fmthint" style="margin:0">Link for "' + esc(label.length > 30 ? label.slice(0,30) + '...' : label) + '"</span>'
+      + '<input class="efield linkinput" type="text" placeholder="Paste link here">'
+      + '<button type="button" class="imgbtn linkok">Add link</button><button type="button" class="imgbtn linkx">Cancel</button>';
+    bar.after(box);
+    const inp = box.querySelector('input'); inp.focus();
+    const done = () => {
+      let url = inp.value.trim();
+      if (!url) { box.remove(); return; }
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      const v = ta.value, ins = '[' + label + '](' + url + ')';
+      ta.value = v.slice(0,a) + ins + v.slice(b);
+      box.remove();
+      ta.focus(); ta.setSelectionRange(a + ins.length, a + ins.length);
+      ta.dispatchEvent(new Event('input', { bubbles:true }));
+    };
+    box.querySelector('.linkok').addEventListener('click', done);
+    box.querySelector('.linkx').addEventListener('click', () => box.remove());
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); done(); } if (e.key === 'Escape') box.remove(); });
   }
   function enhanceEditors(root) {
     root.querySelectorAll('textarea.efield').forEach(ta => {
@@ -625,6 +646,7 @@
       });
       const host = ta.parentNode.classList.contains('erow') ? ta.parentNode : ta;
       host.parentNode.insertBefore(bar, host);
+      ta._fmtbar = bar;
       ta.addEventListener('keydown', e => {
         if (!(e.metaKey || e.ctrlKey)) return;
         const k = e.key.toLowerCase();
