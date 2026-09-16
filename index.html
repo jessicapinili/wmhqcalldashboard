@@ -111,11 +111,15 @@
   .lightbox { position:fixed; inset:0; z-index:200; background:rgba(39,7,7,0.88); display:flex; align-items:center; justify-content:center; padding:30px; cursor:zoom-out; }
   .lightbox img { max-width:100%; max-height:100%; border-radius:12px; }
 
+  .rte { min-height:70px; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .rte.is-empty:before { content:attr(data-ph); color:#b6abab; pointer-events:none; }
+  .rte a { color:var(--accent); text-decoration:underline; text-underline-offset:3px; font-weight:600; }
+  .fmtbar .unl { width:auto; padding:0 12px; border-radius:100px; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; font-weight:600; color:var(--muted); }
   .fmtbar { display:flex; align-items:center; gap:6px; margin:10px 0 6px; }
   .fmtbar button { width:30px; height:30px; border-radius:50%; border:1px solid #ddd2d2; background:#fff; color:var(--ink); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; }
   .fmtbar button svg { display:block; margin:auto; }
   .linkbox { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 8px; padding:10px 12px; background:var(--tint); border-radius:12px; }
-  .linkbox .linkinput { flex:1; min-width:180px; padding:8px 12px; border-radius:100px; }
+  .linkbox .linkinput { font-family:"DM Sans",sans-serif; font-size:14px; border:1px solid #e3d9d9; background:#fff; flex:1; min-width:180px; padding:8px 12px; border-radius:100px; }
   .linkbox .imgbtn { margin:0; }
   a.tlink, a.tlink:visited { color:var(--accent); text-decoration:underline; text-underline-offset:3px; font-weight:600; }
   a.tlink:hover { color:var(--accent-deep); }
@@ -430,6 +434,7 @@
           if (!file || !file.type.startsWith('image/')) return;
           try { setBrief(i, { img: await shrinkImage(file) }); renderBriefing(); } catch(e) { alert('That image could not be loaded. Try a PNG or JPG.'); }
         };
+        ta._addImg = addImg;
         ta.addEventListener('paste', e => {
           const f = [...(e.clipboardData ? e.clipboardData.files : [])].find(x => x.type.startsWith('image/'));
           if (f) { e.preventDefault(); addImg(f); }
@@ -503,8 +508,8 @@
       arr.forEach(item => {
         const type = (item.type === 'subconscious') ? 'subconscious' : 'business';
         const typeLabel = type === 'subconscious' ? 'Subconscious' : 'Business';
-        const pts = (item.points || "").split('\n').map(s => s.trim()).filter(Boolean);
-        const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + fmt(p) + '</span></div>').join('') + '</div>' : '';
+        const pts = fmt(item.points || "").split('\n').map(s => clean(s).trim()).filter(Boolean);
+        const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + p + '</span></div>').join('') + '</div>' : '';
         const card = document.createElement('div'); card.className = 'q-card';
         card.innerHTML = '<div class="q-head"><div class="q-head-left"><span class="chev">' + chevSVG + '</span><span class="who">' + esc(item.name) + '</span><span class="qtag ' + type + '">' + typeLabel + '</span></div><button class="q-cover">Mark covered</button></div>'
           + '<div class="q-detail"><div class="body">' + fmt(item.q) + '</div>' + ptsHtml + '</div>';
@@ -547,6 +552,7 @@
           if (!file || !file.type.startsWith('image/')) return;
           try { setFind(i, { img: await shrinkImage(file) }); renderFindings(); } catch(e) { alert('That image could not be loaded. Try a PNG or JPG.'); }
         };
+        ta._addImg = addImg;
         ta.addEventListener('paste', e => {
           const f = [...(e.clipboardData ? e.clipboardData.files : [])].find(x => x.type.startsWith('image/'));
           if (f) { e.preventDefault(); addImg(f); }
@@ -577,7 +583,7 @@
   }
 
   /* TEXT FORMATTING: **bold**  *italic*  __underline__  ~~strike~~ */
-  function fmt(t) {
+  function legacyFmt(t) {
     let h = esc(t);
     h = h.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a class="tlink" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     h = h.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
@@ -586,74 +592,128 @@
     h = h.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
     return h;
   }
-  const FMT = { bold:'**', italic:'*', underline:'__', strike:'~~' };
-  function applyFmt(ta, kind) {
-    const m = FMT[kind], a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
-    const sel = v.slice(a, b);
-    let nv, na, nb;
-    if (v.slice(a - m.length, a) === m && v.slice(b, b + m.length) === m) {
-      nv = v.slice(0, a - m.length) + sel + v.slice(b + m.length); na = a - m.length; nb = na + sel.length;
-    } else {
-      nv = v.slice(0,a) + m + sel + m + v.slice(b); na = a + m.length; nb = na + sel.length;
-    }
-    ta.value = nv; ta.focus(); ta.setSelectionRange(na, nb);
-    ta.dispatchEvent(new Event('input', { bubbles:true }));
+  /* RICH TEXT: stored as "<!--r-->" + safe inline HTML with \n for new lines */
+  const RICH = '<!--r-->';
+  function serialize(node) {
+    let out = '';
+    node.childNodes.forEach(n => {
+      if (n.nodeType === 3) { out += esc(n.nodeValue); return; }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName;
+      if (tag === 'BR') { out += '\n'; return; }
+      const inner = serialize(n);
+      const st = n.style || {};
+      if (tag === 'DIV' || tag === 'P') { if (out && !out.endsWith('\n')) out += '\n'; out += inner; return; }
+      if (tag === 'B' || tag === 'STRONG' || st.fontWeight === 'bold' || +st.fontWeight >= 600) { out += '<strong>' + inner + '</strong>'; return; }
+      if (tag === 'I' || tag === 'EM' || st.fontStyle === 'italic') { out += '<em>' + inner + '</em>'; return; }
+      if (tag === 'U') { out += '<u>' + inner + '</u>'; return; }
+      if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') { out += '<s>' + inner + '</s>'; return; }
+      if (tag === 'A') {
+        const href = n.getAttribute('href') || '';
+        if (/^https?:\/\//i.test(href)) { out += '<a class="tlink" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + inner + '</a>'; return; }
+      }
+      out += inner;
+    });
+    return out;
   }
-  function applyLink(ta) {
-    const a = ta.selectionStart, b = ta.selectionEnd;
-    const bar = ta._fmtbar;
+  function clean(html) { const t = document.createElement('div'); t.innerHTML = html; return serialize(t); }
+  function fmt(t) {
+    t = t == null ? '' : String(t);
+    if (t.startsWith(RICH)) return clean(t.slice(RICH.length).replace(/\n/g, '<br>'));
+    return legacyFmt(t);
+  }
+  function toEditorHTML(t) { return fmt(t).replace(/\n/g, '<br>'); }
+
+  function saveRange() { const sel = window.getSelection(); return sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null; }
+  function restoreRange(r) { if (!r) return; const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+
+  function linkBox(ed, bar, sync) {
     const old = bar.nextElementSibling && bar.nextElementSibling.classList.contains('linkbox') ? bar.nextElementSibling : null;
     if (old) old.remove();
-    if (a === b) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) {
       const warn = document.createElement('div'); warn.className = 'linkbox';
       warn.innerHTML = '<span class="fmthint" style="margin:0">Highlight the words you want to turn into a link first.</span>';
       bar.after(warn); setTimeout(() => warn.remove(), 2500); return;
     }
-    const label = ta.value.slice(a, b);
+    const range = saveRange();
+    const label = sel.toString();
     const box = document.createElement('div'); box.className = 'linkbox';
     box.innerHTML = '<span class="fmthint" style="margin:0">Link for "' + esc(label.length > 30 ? label.slice(0,30) + '...' : label) + '"</span>'
-      + '<input class="efield linkinput" type="text" placeholder="Paste link here">'
+      + '<input class="linkinput" type="text" placeholder="Paste link here">'
       + '<button type="button" class="imgbtn linkok">Add link</button><button type="button" class="imgbtn linkx">Cancel</button>';
     bar.after(box);
     const inp = box.querySelector('input'); inp.focus();
     const done = () => {
       let url = inp.value.trim();
-      if (!url) { box.remove(); return; }
-      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-      const v = ta.value, ins = '[' + label + '](' + url + ')';
-      ta.value = v.slice(0,a) + ins + v.slice(b);
       box.remove();
-      ta.focus(); ta.setSelectionRange(a + ins.length, a + ins.length);
-      ta.dispatchEvent(new Event('input', { bubbles:true }));
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      ed.focus(); restoreRange(range);
+      document.execCommand('createLink', false, url);
+      sync();
     };
     box.querySelector('.linkok').addEventListener('click', done);
-    box.querySelector('.linkx').addEventListener('click', () => box.remove());
+    box.querySelector('.linkx').addEventListener('click', () => { box.remove(); ed.focus(); restoreRange(range); });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); done(); } if (e.key === 'Escape') box.remove(); });
   }
+
   function enhanceEditors(root) {
     root.querySelectorAll('textarea.efield').forEach(ta => {
       if (ta.dataset.fmt) return; ta.dataset.fmt = '1';
+      const ed = document.createElement('div');
+      ed.className = 'efield rte' + (ta.classList.contains('grow') ? ' grow' : '');
+      ed.contentEditable = 'true';
+      ed.dataset.ph = ta.getAttribute('placeholder') || '';
+      ed.style.minHeight = (Number(ta.getAttribute('rows') || 3) * 24 + 22) + 'px';
+      ed.innerHTML = toEditorHTML(ta.value);
+      const sync = () => {
+        const html = serialize(ed).replace(/^\n+|\n+$/g, '');
+        const plain = ed.textContent.trim();
+        ta.value = plain ? RICH + html : '';
+        ed.classList.toggle('is-empty', !plain);
+        ta.dispatchEvent(new Event('input', { bubbles:true }));
+      };
+      ed.classList.toggle('is-empty', !ed.textContent.trim());
+      ed.addEventListener('input', sync);
+      ed.addEventListener('paste', e => {
+        const files = [...(e.clipboardData ? e.clipboardData.files : [])];
+        const img = files.find(x => x.type.startsWith('image/'));
+        e.preventDefault();
+        if (img) { if (ta._addImg) ta._addImg(img); return; }
+        document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+      });
+
       const bar = document.createElement('div'); bar.className = 'fmtbar';
       bar.innerHTML = '<button type="button" data-k="bold" title="Bold (Cmd/Ctrl+B)"><b>B</b></button>'
         + '<button type="button" data-k="italic" title="Italic (Cmd/Ctrl+I)"><i>I</i></button>'
         + '<button type="button" data-k="underline" title="Underline (Cmd/Ctrl+U)"><u>U</u></button>'
-        + '<button type="button" data-k="strike" title="Strikethrough (Cmd/Ctrl+Shift+X)"><s>S</s></button>'
-        + '<button type="button" data-k="link" title="Add link (Cmd/Ctrl+K)"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>'
+        + '<button type="button" data-k="strikeThrough" title="Strikethrough (Cmd/Ctrl+Shift+X)"><s>S</s></button>'
+        + '<button type="button" data-k="link" title="Link (Cmd/Ctrl+K)"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>'
+        + '<button type="button" data-k="unlink" title="Remove link" class="unl">Unlink</button>'
         + '<span class="fmthint">Highlight text, then tap</span>';
       bar.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('mousedown', e => e.preventDefault());
-        btn.addEventListener('click', () => btn.dataset.k === 'link' ? applyLink(ta) : applyFmt(ta, btn.dataset.k));
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.k;
+          if (k === 'link') { linkBox(ed, bar, sync); return; }
+          ed.focus();
+          document.execCommand(k, false, null);
+          sync();
+        });
       });
-      const host = ta.parentNode.classList.contains('erow') ? ta.parentNode : ta;
-      host.parentNode.insertBefore(bar, host);
-      ta._fmtbar = bar;
-      ta.addEventListener('keydown', e => {
+      ed.addEventListener('keydown', e => {
         if (!(e.metaKey || e.ctrlKey)) return;
         const k = e.key.toLowerCase();
-        const kind = k==='b' ? 'bold' : k==='i' ? 'italic' : k==='u' ? 'underline' : (k==='x' && e.shiftKey) ? 'strike' : null;
-        if (k==='k') { e.preventDefault(); applyLink(ta); return; }
-        if (kind) { e.preventDefault(); applyFmt(ta, kind); }
+        if (k === 'k') { e.preventDefault(); linkBox(ed, bar, sync); }
+        if (k === 'x' && e.shiftKey) { e.preventDefault(); document.execCommand('strikeThrough'); sync(); }
+        if (k === 'b' || k === 'i' || k === 'u') setTimeout(sync, 0);
       });
+
+      const host = ta.parentNode.classList.contains('erow') ? ta.parentNode : ta;
+      host.parentNode.insertBefore(bar, host);
+      ta.style.display = 'none';
+      ta.after(ed);
     });
   }
 
