@@ -95,7 +95,7 @@
   .brief-item:first-child { border-top:none; }
   .tick { width:18px; height:18px; border:1.5px solid #cfc0c0; border-radius:50%; flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
   .tick svg { width:10px; height:10px; opacity:0; transition:opacity .15s; }
-  .brief-item .txt { font-size:15px; color:#4a4242; line-height:1.45; transition:all .15s; }
+  .brief-item .txt { font-size:15px; color:#4a4242; line-height:1.6; white-space:pre-line; transition:all .15s; }
   .brief-item.done .tick { background:var(--accent); border-color:var(--accent); }
   .brief-item.done .tick svg { opacity:1; }
   .brief-item.done .txt { color:#b4abab; text-decoration:line-through; }
@@ -125,7 +125,7 @@
   .empty { font-size:14px; color:#b6abab; margin-top:20px; }
 
   .find-list { margin-top:20px; display:flex; flex-direction:column; gap:12px; }
-  .find-item { display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#4a4242; line-height:1.5; }
+  .find-item { display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#4a4242; line-height:1.6; white-space:pre-line; }
   .find-item .mk { color:var(--accent); font-weight:700; flex-shrink:0; }
 
   /* EDIT FIELDS */
@@ -360,7 +360,7 @@
     if (editing) {
       arr.forEach((item, i) => {
         const row = document.createElement('div'); row.className = 'erow';
-        row.innerHTML = '<textarea class="efield grow" rows="2">' + esc(item) + '</textarea><button class="del">&times;</button>';
+        row.innerHTML = '<textarea class="efield grow" rows="3" placeholder="Update (press Enter for a new line, twice for a space)">' + esc(item) + '</textarea><button class="del">&times;</button>';
         row.querySelector('textarea').addEventListener('input', e => cur().briefing[i] = e.target.value);
         row.querySelector('.del').addEventListener('click', () => { cur().briefing.splice(i,1); renderBriefing(); });
         slot.appendChild(row);
@@ -449,7 +449,7 @@
     if (editing) {
       arr.forEach((item, i) => {
         const row = document.createElement('div'); row.className = 'erow';
-        row.innerHTML = '<textarea class="efield grow" rows="2">' + esc(item) + '</textarea><button class="del">&times;</button>';
+        row.innerHTML = '<textarea class="efield grow" rows="3" placeholder="Finding (press Enter for a new line, twice for a space)">' + esc(item) + '</textarea><button class="del">&times;</button>';
         row.querySelector('textarea').addEventListener('input', e => cur().findings[i] = e.target.value);
         row.querySelector('.del').addEventListener('click', () => { cur().findings.splice(i,1); renderFindings(); });
         slot.appendChild(row);
