@@ -113,6 +113,9 @@
 
   .fmtbar { display:flex; align-items:center; gap:6px; margin:10px 0 6px; }
   .fmtbar button { width:30px; height:30px; border-radius:50%; border:1px solid #ddd2d2; background:#fff; color:var(--ink); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; }
+  .fmtbar button svg { display:block; margin:auto; }
+  a.tlink, a.tlink:visited { color:var(--accent); text-decoration:underline; text-underline-offset:3px; font-weight:600; }
+  a.tlink:hover { color:var(--accent-deep); }
   .fmtbar button:hover { background:var(--tint); border-color:var(--border-active); }
   .fmthint { font-family:var(--mono); font-size:10px; letter-spacing:0.5px; color:var(--label); margin-left:6px; }
   .bedit .fmtbar { margin-top:0; }
@@ -573,6 +576,7 @@
   /* TEXT FORMATTING: **bold**  *italic*  __underline__  ~~strike~~ */
   function fmt(t) {
     let h = esc(t);
+    h = h.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a class="tlink" href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     h = h.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
     h = h.replace(/__([\s\S]+?)__/g, '<u>$1</u>');
     h = h.replace(/~~([\s\S]+?)~~/g, '<s>$1</s>');
@@ -592,6 +596,19 @@
     ta.value = nv; ta.focus(); ta.setSelectionRange(na, nb);
     ta.dispatchEvent(new Event('input', { bubbles:true }));
   }
+  function applyLink(ta) {
+    const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
+    let label = v.slice(a, b);
+    let url = prompt('Paste the link (URL):', 'https://');
+    if (!url || url === 'https://') return;
+    url = url.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    if (!label) label = prompt('Text to show for the link:', '') || url;
+    const ins = '[' + label + '](' + url + ')';
+    ta.value = v.slice(0,a) + ins + v.slice(b);
+    ta.focus(); ta.setSelectionRange(a + ins.length, a + ins.length);
+    ta.dispatchEvent(new Event('input', { bubbles:true }));
+  }
   function enhanceEditors(root) {
     root.querySelectorAll('textarea.efield').forEach(ta => {
       if (ta.dataset.fmt) return; ta.dataset.fmt = '1';
@@ -600,10 +617,11 @@
         + '<button type="button" data-k="italic" title="Italic (Cmd/Ctrl+I)"><i>I</i></button>'
         + '<button type="button" data-k="underline" title="Underline (Cmd/Ctrl+U)"><u>U</u></button>'
         + '<button type="button" data-k="strike" title="Strikethrough (Cmd/Ctrl+Shift+X)"><s>S</s></button>'
+        + '<button type="button" data-k="link" title="Add link (Cmd/Ctrl+K)"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>'
         + '<span class="fmthint">Highlight text, then tap</span>';
       bar.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('mousedown', e => e.preventDefault());
-        btn.addEventListener('click', () => applyFmt(ta, btn.dataset.k));
+        btn.addEventListener('click', () => btn.dataset.k === 'link' ? applyLink(ta) : applyFmt(ta, btn.dataset.k));
       });
       const host = ta.parentNode.classList.contains('erow') ? ta.parentNode : ta;
       host.parentNode.insertBefore(bar, host);
@@ -611,10 +629,13 @@
         if (!(e.metaKey || e.ctrlKey)) return;
         const k = e.key.toLowerCase();
         const kind = k==='b' ? 'bold' : k==='i' ? 'italic' : k==='u' ? 'underline' : (k==='x' && e.shiftKey) ? 'strike' : null;
+        if (k==='k') { e.preventDefault(); applyLink(ta); return; }
         if (kind) { e.preventDefault(); applyFmt(ta, kind); }
       });
     });
   }
+
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('a.tlink')) e.stopPropagation(); }, true);
 
   function renderAll() { renderDate(); renderBriefing(); renderQuestions(); renderFindings(); }
 
