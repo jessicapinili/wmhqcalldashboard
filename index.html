@@ -111,6 +111,13 @@
   .lightbox { position:fixed; inset:0; z-index:200; background:rgba(39,7,7,0.88); display:flex; align-items:center; justify-content:center; padding:30px; cursor:zoom-out; }
   .lightbox img { max-width:100%; max-height:100%; border-radius:12px; }
 
+  .fmtbar { display:flex; align-items:center; gap:6px; margin:10px 0 6px; }
+  .fmtbar button { width:30px; height:30px; border-radius:50%; border:1px solid #ddd2d2; background:#fff; color:var(--ink); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; }
+  .fmtbar button:hover { background:var(--tint); border-color:var(--border-active); }
+  .fmthint { font-family:var(--mono); font-size:10px; letter-spacing:0.5px; color:var(--label); margin-left:6px; }
+  .bedit .fmtbar { margin-top:0; }
+  .brief-item .txt strong, .find-item strong, .q-detail strong { font-weight:700; color:var(--ink); }
+
   /* QUESTIONS (accordion + type tags) */
   .q-list { margin-top:22px; display:flex; flex-direction:column; gap:14px; }
   .q-card { border:1px solid var(--line); border-radius:14px; overflow:hidden; transition:opacity .15s; }
@@ -400,7 +407,8 @@
     document.body.appendChild(lb);
   }
 
-  function renderBriefing() {
+  function renderBriefing() { _renderBriefing(); if (editing) enhanceEditors(document.getElementById("app")); }
+  function _renderBriefing() {
     const slot = document.getElementById('briefSlot'); slot.innerHTML = '';
     const arr = cur().briefing;
     if (editing) {
@@ -434,7 +442,7 @@
       arr.forEach(item => {
         const row = document.createElement('div'); row.className = 'brief-item';
         const img = bImg(item);
-        row.innerHTML = '<div class="tick">' + tickSVG + '</div><div class="bcontent"><div class="txt">' + esc(bText(item)) + '</div>'
+        row.innerHTML = '<div class="tick">' + tickSVG + '</div><div class="bcontent"><div class="txt">' + fmt(bText(item)) + '</div>'
           + (img ? '<img class="bimg" src="' + img + '" alt="">' : '') + '</div>';
         row.addEventListener('click', () => row.classList.toggle('done'));
         const im = row.querySelector('.bimg');
@@ -451,7 +459,8 @@
     document.getElementById('qCounter').textContent = done + ' of ' + total + ' covered';
   }
 
-  function renderQuestions() {
+  function renderQuestions() { _renderQuestions(); if (editing) enhanceEditors(document.getElementById("app")); }
+  function _renderQuestions() {
     const slot = document.getElementById('qSlot'); slot.innerHTML = '';
     const arr = cur().questions;
     if (editing) {
@@ -489,10 +498,10 @@
         const type = (item.type === 'subconscious') ? 'subconscious' : 'business';
         const typeLabel = type === 'subconscious' ? 'Subconscious' : 'Business';
         const pts = (item.points || "").split('\n').map(s => s.trim()).filter(Boolean);
-        const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + esc(p) + '</span></div>').join('') + '</div>' : '';
+        const ptsHtml = pts.length ? '<div class="q-points">' + pts.map(p => '<div class="q-point"><span class="dotb"></span><span>' + fmt(p) + '</span></div>').join('') + '</div>' : '';
         const card = document.createElement('div'); card.className = 'q-card';
         card.innerHTML = '<div class="q-head"><div class="q-head-left"><span class="chev">' + chevSVG + '</span><span class="who">' + esc(item.name) + '</span><span class="qtag ' + type + '">' + typeLabel + '</span></div><button class="q-cover">Mark covered</button></div>'
-          + '<div class="q-detail"><div class="body">' + esc(item.q) + '</div>' + ptsHtml + '</div>';
+          + '<div class="q-detail"><div class="body">' + fmt(item.q) + '</div>' + ptsHtml + '</div>';
         card.querySelector('.q-head').addEventListener('click', () => card.classList.toggle('open'));
         const coverBtn = card.querySelector('.q-cover');
         coverBtn.addEventListener('click', (e) => {
@@ -515,7 +524,8 @@
     cur().findings[i] = obj.img ? obj : obj.text;
   }
 
-  function renderFindings() {
+  function renderFindings() { _renderFindings(); if (editing) enhanceEditors(document.getElementById("app")); }
+  function _renderFindings() {
     const slot = document.getElementById('findSlot'); slot.innerHTML = '';
     const arr = cur().findings;
     if (editing) {
@@ -550,7 +560,7 @@
       arr.forEach(item => {
         const row = document.createElement('div'); row.className = 'find-item';
         const img = bImg(item);
-        row.innerHTML = '<span class="mk">&rarr;</span><div class="bcontent"><div>' + esc(bText(item)) + '</div>'
+        row.innerHTML = '<span class="mk">&rarr;</span><div class="bcontent"><div>' + fmt(bText(item)) + '</div>'
           + (img ? '<img class="bimg" src="' + img + '" alt="">' : '') + '</div>';
         const im = row.querySelector('.bimg');
         if (im) im.addEventListener('click', () => openLightbox(img));
@@ -558,6 +568,52 @@
       });
       slot.appendChild(list);
     }
+  }
+
+  /* TEXT FORMATTING: **bold**  *italic*  __underline__  ~~strike~~ */
+  function fmt(t) {
+    let h = esc(t);
+    h = h.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/__([\s\S]+?)__/g, '<u>$1</u>');
+    h = h.replace(/~~([\s\S]+?)~~/g, '<s>$1</s>');
+    h = h.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+    return h;
+  }
+  const FMT = { bold:'**', italic:'*', underline:'__', strike:'~~' };
+  function applyFmt(ta, kind) {
+    const m = FMT[kind], a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
+    const sel = v.slice(a, b);
+    let nv, na, nb;
+    if (v.slice(a - m.length, a) === m && v.slice(b, b + m.length) === m) {
+      nv = v.slice(0, a - m.length) + sel + v.slice(b + m.length); na = a - m.length; nb = na + sel.length;
+    } else {
+      nv = v.slice(0,a) + m + sel + m + v.slice(b); na = a + m.length; nb = na + sel.length;
+    }
+    ta.value = nv; ta.focus(); ta.setSelectionRange(na, nb);
+    ta.dispatchEvent(new Event('input', { bubbles:true }));
+  }
+  function enhanceEditors(root) {
+    root.querySelectorAll('textarea.efield').forEach(ta => {
+      if (ta.dataset.fmt) return; ta.dataset.fmt = '1';
+      const bar = document.createElement('div'); bar.className = 'fmtbar';
+      bar.innerHTML = '<button type="button" data-k="bold" title="Bold (Cmd/Ctrl+B)"><b>B</b></button>'
+        + '<button type="button" data-k="italic" title="Italic (Cmd/Ctrl+I)"><i>I</i></button>'
+        + '<button type="button" data-k="underline" title="Underline (Cmd/Ctrl+U)"><u>U</u></button>'
+        + '<button type="button" data-k="strike" title="Strikethrough (Cmd/Ctrl+Shift+X)"><s>S</s></button>'
+        + '<span class="fmthint">Highlight text, then tap</span>';
+      bar.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('mousedown', e => e.preventDefault());
+        btn.addEventListener('click', () => applyFmt(ta, btn.dataset.k));
+      });
+      const host = ta.parentNode.classList.contains('erow') ? ta.parentNode : ta;
+      host.parentNode.insertBefore(bar, host);
+      ta.addEventListener('keydown', e => {
+        if (!(e.metaKey || e.ctrlKey)) return;
+        const k = e.key.toLowerCase();
+        const kind = k==='b' ? 'bold' : k==='i' ? 'italic' : k==='u' ? 'underline' : (k==='x' && e.shiftKey) ? 'strike' : null;
+        if (kind) { e.preventDefault(); applyFmt(ta, kind); }
+      });
+    });
   }
 
   function renderAll() { renderDate(); renderBriefing(); renderQuestions(); renderFindings(); }
