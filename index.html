@@ -251,6 +251,41 @@
   .bv-tip { position:fixed; z-index:205; left:50%; bottom:28px; transform:translateX(-50%); background:#270707; color:#fff; font-size:13px; padding:10px 18px; border-radius:100px; }
   .bv-page { font-family:"DM Sans",sans-serif; font-size:12px; font-weight:600; padding:8px 12px; border-radius:100px; border:1px solid #e3d9d9; background:#fff; color:#270707; cursor:pointer; }
   .board-view.dropping .bv-stage::after { content:'Drop image to add it to the board'; position:absolute; inset:18px; border:3px dashed #A2122A; border-radius:18px; background:rgba(242,198,208,0.25); display:flex; align-items:center; justify-content:center; font-family:"DM Sans",sans-serif; font-weight:700; font-size:18px; color:#660810; pointer-events:none; z-index:6; }
+  .bv-boardwrap { position:relative; }
+  .bv-boards .bv-count { font-family:var(--mono); font-size:10px; opacity:0.7; margin-left:4px; }
+  .bv-boards .caret { font-size:9px; margin-left:4px; opacity:0.8; }
+  .bv-top .bv-boards.on { background:rgba(255,255,255,0.14); }
+  .bv-status { font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#c9a9a9; white-space:nowrap; }
+  .bv-status.ok { color:#C3D7B2; }
+  .bv-status.dirty { color:#F9D8BC; }
+  .bv-lib { position:absolute; top:calc(100% + 8px); left:0; z-index:220; width:360px; max-height:70vh; overflow:auto; background:#fff; color:#270707; border-radius:16px; box-shadow:0 18px 48px rgba(39,7,7,0.25); padding:10px; }
+  .bv-lib.hidden, .bv-modal.hidden { display:none; }
+  .bv-lib-head { display:flex; align-items:center; justify-content:space-between; padding:6px 8px 10px; }
+  .bv-eyebrow { font-family:var(--mono); font-size:10px; letter-spacing:1.5px; color:#9a8a8a; }
+  .bv-libnew { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; border:none; background:#270707; color:#fff; padding:7px 14px; border-radius:100px; cursor:pointer; }
+  .bv-libnew:disabled { opacity:0.35; cursor:not-allowed; }
+  .bv-libfull { font-size:12px; color:#A2122A; padding:0 8px 8px; }
+  .bv-lib-row { display:flex; align-items:center; gap:4px; border-radius:12px; padding:2px 4px 2px 2px; }
+  .bv-lib-row:hover { background:#FAF6F0; }
+  .bv-lib-row.cur { background:#f6eeee; }
+  .bv-lib-open { flex:1; min-width:0; text-align:left; background:none; border:none; cursor:pointer; padding:9px 10px; font-family:'DM Sans',sans-serif; }
+  .bv-lib-name { display:block; font-size:14px; font-weight:700; color:#270707; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bv-lib-type { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:#A2122A; }
+  .bv-lib-when { display:block; font-size:11px; color:#9a8a8a; margin-top:2px; }
+  .bv-lib-row.cur .bv-lib-name:before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:#A2122A; margin-right:7px; vertical-align:middle; }
+  .bv-lib-act { font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; border:1px solid #eadfdf; background:#fff; color:#6b5c5c; padding:5px 9px; border-radius:100px; cursor:pointer; opacity:0; transition:opacity .15s; }
+  .bv-lib-row:hover .bv-lib-act, .bv-lib-act.armed { opacity:1; }
+  .bv-lib-act.del.armed { background:#A2122A; color:#fff; border-color:#A2122A; }
+  .bv-lib-act:disabled { opacity:0 !important; }
+  .bv-modal { position:fixed; inset:0; z-index:230; background:rgba(39,7,7,0.45); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .bv-card { background:#fff; border-radius:20px; padding:28px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(39,7,7,0.3); }
+  .bv-card h3 { font-family:'DM Sans',sans-serif; font-weight:800; font-size:22px; letter-spacing:-0.3px; margin:8px 0 6px; color:#270707; }
+  .bv-card p { font-size:14px; line-height:1.55; color:#6b5c5c; margin:0 0 14px; }
+  .bv-mname { width:100%; box-sizing:border-box; font-family:'DM Sans',sans-serif; font-size:15px; padding:11px 16px; border-radius:100px; border:1px solid #e3d9d9; margin-bottom:16px; }
+  .bv-mrow { display:flex; gap:8px; flex-wrap:wrap; }
+  .bv-mbtn { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; padding:10px 16px; border-radius:100px; border:1px solid #e3d9d9; background:#fff; color:#270707; cursor:pointer; }
+  .bv-mbtn.primary { background:#270707; color:#fff; border-color:#270707; }
+  .bv-mbtn.ghost { border-color:transparent; color:#9a8a8a; }
 </style>
 </head>
 <body data-call="mastermind" data-mode="view">
@@ -852,11 +887,14 @@
   <div class="bv-top">
     <div class="bv-brand">WMHQ AUDITS<span>AUDIT + TRAINING BOARDS</span></div>
     <button class="bv-btn" id="bvBack">&larr; Dashboard</button>
-    <select class="bv-select" id="bvSelect" title="Switch board"></select>
-    <input class="bv-name" id="bvName" placeholder="Board name (e.g. member name)">
-    <button class="bv-btn" id="bvNew">+ New board</button>
-    <button class="bv-btn" id="bvDup">Duplicate</button>
-    <button class="bv-btn" id="bvDel">Delete board</button>
+    <div class="bv-boardwrap">
+      <button class="bv-btn bv-boards" id="bvBoards" title="Your saved boards">Boards <span class="bv-count" id="bvCount">1/15</span> <span class="caret">&#9662;</span></button>
+      <div class="bv-lib hidden" id="bvLib"></div>
+    </div>
+    <select class="bv-select" id="bvType" title="Board type"></select>
+    <input class="bv-name" id="bvName" placeholder="Name this board (e.g. member name)">
+    <span class="bv-status" id="bvStatus">Saved</span>
+    <button class="bv-btn primary" id="bvSave" title="Save (Cmd/Ctrl+S)">Save</button>
     <div class="bv-spacer"></div>
     <label class="bv-btn" id="bvLogoBtn" title="Swap the faint background logo">Change logo<input type="file" id="bvLogo" accept="image/*" hidden></label>
     <button class="bv-btn" id="bvClear">Clear board</button>
@@ -1333,19 +1371,141 @@
     if (map[k]) setTool(map[k]);
   });
 
-  /* ---------- boards ---------- */
+  /* ---------- boards: save, library (max 15), unsaved-changes prompt ---------- */
+  const MAX_BOARDS = 15;
+  const TYPES = ['ASK JP Audit', 'Call Audit', 'WMHQ Training'];
+  data.boards.forEach(b => { if (!b.type) { const m = TYPES.find(t => t.toLowerCase() === (b.name || '').trim().toLowerCase()); b.type = m || TYPES[0]; } });
+  $('bvType').innerHTML = TYPES.map(t => '<option value="' + t + '">' + t + '</option>').join('');
+  $('bvType').addEventListener('change', e => { board().type = e.target.value; try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(err) {} renderLibrary(); });
+  data.boards.forEach(b => { if (!b.savedAt && (b.name || (b.objs && b.objs.length))) b.savedAt = Date.now(); });
+  let savedSnap = JSON.stringify(board().objs);
+  const isDirty = () => JSON.stringify(board().objs) !== savedSnap;
+  const fmtWhen = t => { if (!t) return 'Not saved yet'; const d = new Date(t); return 'Saved ' + d.toLocaleDateString('en-AU', { day:'numeric', month:'short' }) + ', ' + d.toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit' }); };
+  function setStatus() {
+    const st = $('bvStatus');
+    if (isDirty()) { st.textContent = 'Unsaved changes'; st.className = 'bv-status dirty'; }
+    else { st.textContent = board().savedAt ? 'Saved' : 'Not saved yet'; st.className = 'bv-status' + (board().savedAt ? ' ok' : ''); }
+    $('bvCount').textContent = data.boards.length + '/' + MAX_BOARDS;
+  }
+  setInterval(() => { if (!view.classList.contains('hidden')) setStatus(); }, 700);
+  function saveBoard(flash) {
+    if (S.editing >= 0) stopEditing();
+    if (!(board().name || '').trim()) board().name = 'Untitled board';
+    board().savedAt = Date.now();
+    savedSnap = JSON.stringify(board().objs);
+    $('bvName').value = board().name;
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) { alert('This board is too full to save in this browser. Try removing an image or using smaller screenshots.'); return false; }
+    setStatus(); renderLibrary();
+    if (flash) { const b = $('bvSave'); b.textContent = 'Saved ✓'; setTimeout(() => b.textContent = 'Save', 1400); }
+    return true;
+  }
   function fillSelect() {
-    $('bvSelect').innerHTML = data.boards.map((b, i) => '<option value="' + i + '"' + (i === data.cur ? ' selected' : '') + '>' + esc(b.name || 'Untitled board') + '</option>').join('');
     $('bvName').value = board().name || '';
+    $('bvType').value = board().type || TYPES[0];
     pageSel.value = board().bg || 'dots';
     if (typeof updateLogoBtn === 'function') updateLogoBtn();
+    setStatus(); renderLibrary();
   }
-  function switchTo(i) { if (S.editing >= 0) stopEditing(); data.cur = i; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = []; fillSelect(); render(); save(); }
-  $('bvSelect').addEventListener('change', e => switchTo(+e.target.value));
-  $('bvName').addEventListener('input', e => { board().name = e.target.value; const opt = $('bvSelect').options[data.cur]; if (opt) opt.textContent = e.target.value || 'Untitled board'; save(); });
-  $('bvName').addEventListener('keydown', e => e.stopPropagation());
-  $('bvNew').addEventListener('click', () => { data.boards.push(newBoard('New audit')); switchTo(data.boards.length - 1); $('bvName').focus(); $('bvName').select(); });
-  $('bvDup').addEventListener('click', () => { const c = JSON.parse(JSON.stringify(board())); c.id = newBoard('').id; c.name = (c.name || 'Board') + ' copy'; data.boards.push(c); switchTo(data.boards.length - 1); });
+  function switchTo(i) {
+    if (S.editing >= 0) stopEditing();
+    data.cur = i; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = [];
+    savedSnap = JSON.stringify(board().objs);
+    if (typeof fitView === 'function') fitView();
+    fillSelect(); render(); save();
+  }
+
+  /* Unsaved-changes prompt (in-page, never blocked by the browser) */
+  const modal = document.createElement('div'); modal.className = 'bv-modal hidden'; view.appendChild(modal);
+  function askSave(nextLabel, proceed) {
+    if (S.editing >= 0) stopEditing();
+    if (!isDirty()) { proceed(); return; }
+    modal.innerHTML = '<div class="bv-card"><div class="bv-eyebrow">UNSAVED CHANGES</div>'
+      + '<h3>Save this board first?</h3>'
+      + '<p>You have changes on this board that are not saved. Name it and save it before you ' + nextLabel + '.</p>'
+      + '<input class="bv-mname" value="' + esc(board().name || '') + '" placeholder="Board name">'
+      + '<div class="bv-mrow"><button class="bv-mbtn primary" data-a="save">Save and continue</button><button class="bv-mbtn" data-a="discard">Don\'t save</button><button class="bv-mbtn ghost" data-a="cancel">Cancel</button></div></div>';
+    modal.classList.remove('hidden');
+    const inp = modal.querySelector('input'); inp.focus(); inp.select();
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') modal.querySelector('[data-a=save]').click(); if (e.key === 'Escape') modal.querySelector('[data-a=cancel]').click(); });
+    modal.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const a = b.dataset.a;
+      if (a === 'cancel') { modal.classList.add('hidden'); return; }
+      if (a === 'save') { board().name = inp.value.trim() || board().name || 'Untitled board'; if (!saveBoard(false)) return; }
+      if (a === 'discard') {
+        if (board().savedAt) board().objs = JSON.parse(savedSnap);
+        else { data.boards.splice(data.cur, 1); if (!data.boards.length) data.boards.push(newBoard('Untitled board')); data.cur = Math.min(data.cur, data.boards.length - 1); }
+        try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) {}
+      }
+      modal.classList.add('hidden'); proceed();
+    }));
+  }
+
+  /* Minimal board library dropdown */
+  const lib = $('bvLib');
+  function renderLibrary() {
+    const full = data.boards.length >= MAX_BOARDS;
+    lib.innerHTML = '<div class="bv-lib-head"><span class="bv-eyebrow">SAVED BOARDS · ' + data.boards.length + '/' + MAX_BOARDS + '</span>'
+      + '<button class="bv-libnew" id="bvNew"' + (full ? ' disabled title="You have 15 boards. Delete one to make room."' : '') + '>+ New board</button></div>'
+      + (full ? '<div class="bv-libfull">15 boards is the limit. Delete one to make a new board.</div>' : '')
+      + data.boards.map((b, i) => '<div class="bv-lib-row' + (i === data.cur ? ' cur' : '') + '" data-i="' + i + '">'
+        + '<button class="bv-lib-open" data-i="' + i + '"><span class="bv-lib-name">' + esc(b.name || 'Untitled board') + '</span><span class="bv-lib-when"><span class="bv-lib-type">' + esc(b.type || TYPES[0]) + '</span> · ' + (i === data.cur && isDirty() ? 'Unsaved changes' : fmtWhen(b.savedAt)) + '</span></button>'
+        + '<button class="bv-lib-act" data-dup="' + i + '" title="Duplicate"' + (full ? ' disabled' : '') + '>Copy</button>'
+        + '<button class="bv-lib-act del" data-del="' + i + '" title="Delete">Delete</button></div>').join('');
+    lib.querySelector('#bvNew').addEventListener('click', () => {
+      if (data.boards.length >= MAX_BOARDS) return;
+      closeLib();
+      askSave('start a new board', () => {
+        if (data.boards.length >= MAX_BOARDS) return;
+        const nb = newBoard(''); nb.type = $('bvType').value || TYPES[0]; data.boards.push(nb); switchTo(data.boards.length - 1);
+        $('bvName').focus();
+      });
+    });
+    lib.querySelectorAll('.bv-lib-open').forEach(b => b.addEventListener('click', () => {
+      const i = +b.dataset.i; if (i === data.cur) { closeLib(); return; }
+      closeLib();
+      const id = data.boards[i].id;
+      askSave('open another board', () => { const j = data.boards.findIndex(x => x.id === id); switchTo(j >= 0 ? j : 0); });
+    }));
+    lib.querySelectorAll('[data-dup]').forEach(b => b.addEventListener('click', () => {
+      if (data.boards.length >= MAX_BOARDS) return;
+      const src = data.boards[+b.dataset.dup];
+      const c = JSON.parse(JSON.stringify(src)); c.id = newBoard('').id; c.name = (src.name || 'Board') + ' copy'; c.savedAt = Date.now();
+      data.boards.splice(+b.dataset.dup + 1, 0, c);
+      if (+b.dataset.dup < data.cur) data.cur++;
+      save(); renderLibrary(); setStatus();
+    }));
+    lib.querySelectorAll('[data-del]').forEach(b => {
+      let armed = false;
+      b.addEventListener('click', () => {
+        if (!armed) { armed = true; b.textContent = 'Sure?'; b.classList.add('armed'); setTimeout(() => { armed = false; b.textContent = 'Delete'; b.classList.remove('armed'); }, 3000); return; }
+        const i = +b.dataset.del;
+        data.boards.splice(i, 1);
+        if (!data.boards.length) data.boards.push(newBoard('Untitled board'));
+        if (i === data.cur) { data.cur = Math.min(i, data.boards.length - 1); switchTo(data.cur); }
+        else { if (i < data.cur) data.cur--; save(); renderLibrary(); setStatus(); }
+      });
+    });
+  }
+  function openLib() { renderLibrary(); lib.classList.remove('hidden'); $('bvBoards').classList.add('on'); }
+  function closeLib() { lib.classList.add('hidden'); $('bvBoards').classList.remove('on'); }
+  $('bvBoards').addEventListener('click', e => { e.stopPropagation(); lib.classList.contains('hidden') ? openLib() : closeLib(); });
+  document.addEventListener('pointerdown', e => { if (!lib.classList.contains('hidden') && !lib.contains(e.target) && !$('bvBoards').contains(e.target)) closeLib(); }, true);
+
+  /* Typing the name renames the board and saves it under that name */
+  let nameT = null;
+  $('bvName').addEventListener('input', e => {
+    board().name = e.target.value;
+    clearTimeout(nameT); nameT = setTimeout(() => { if (board().name.trim()) saveBoard(false); }, 600);
+  });
+  $('bvName').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); saveBoard(true); e.target.blur(); } });
+  $('bvName').addEventListener('blur', () => { if (!(board().name || '').trim()) { board().name = ''; } });
+  $('bvSave').addEventListener('click', () => saveBoard(true));
+  document.addEventListener('keydown', e => {
+    if (view.classList.contains('hidden')) return;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); e.stopPropagation(); saveBoard(true); }
+  }, true);
+  window.addEventListener('beforeunload', e => { if (!view.classList.contains('hidden') && isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
   function twoTap(btn, label, confirmLabel, fn) {
     let armed = false, t;
     btn.addEventListener('click', () => {
@@ -1353,7 +1513,6 @@
       clearTimeout(t); armed = false; btn.textContent = label; btn.classList.remove('warn'); fn();
     });
   }
-  twoTap($('bvDel'), 'Delete board', 'Tap again to delete', () => { data.boards.splice(data.cur, 1); if (!data.boards.length) data.boards.push(newBoard('ASK JP Audit')); switchTo(Math.max(0, data.cur - 1)); });
   twoTap($('bvClear'), 'Clear board', 'Tap again to clear', () => { snap(); board().objs = []; S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); });
 
   /* ---------- present ---------- */
