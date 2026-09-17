@@ -961,6 +961,7 @@
   pageSel.innerHTML = Object.keys(PAGES).map(k => '<option value="' + k + '">' + PAGES[k].label + '</option>').join('');
   pageSel.addEventListener('change', e => { board().bg = e.target.value; render(); save(); });
   const NOTE_COLOURS = ['#F9E6AB','#F2C6D0','#E4C6DF','#F9D8BC','#C3D7B2','#BCD9F0'];
+  const GROUP = new Set();
   const S = { note:'#F9E6AB', tool:'pen', color:'#A2122A', fill:'none', size:4, font:36, border:false, sel:-1, editing:-1, undo:[], redo:[] };
   let saveT = null, warned = false;
   function save() {
@@ -971,8 +972,8 @@
     }, 250);
   }
   function snap() { S.undo.push(JSON.stringify(objs())); if (S.undo.length > 80) S.undo.shift(); S.redo = []; }
-  function undo() { if (!S.undo.length) return; S.redo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.undo.pop()); S.sel = -1; S.editing = -1; render(); save(); }
-  function redo() { if (!S.redo.length) return; S.undo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.redo.pop()); S.sel = -1; S.editing = -1; render(); save(); }
+  function undo() { if (!S.undo.length) return; S.redo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.undo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
+  function redo() { if (!S.redo.length) return; S.undo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.redo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
 
   const r1 = n => Math.round(n * 10) / 10;
   function pt(e) { const m = svg.getScreenCTM().inverse(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m); return [r1(p.x), r1(p.y)]; }
@@ -1033,6 +1034,8 @@
       + (pg.extra || '');
     if (logoSrc()) { const lb = logoBox(); s += '<image href="' + logoSrc() + '" x="' + lb.x + '" y="' + lb.y + '" width="' + lb.w + '" height="' + lb.h + '" opacity="' + (board().bg === 'dark' ? 0.022 : LOGO_OPACITY) + '"' + (board().bg === 'dark' ? ' style="filter:brightness(0) invert(1)"' : '') + ' preserveAspectRatio="xMidYMid meet" pointer-events="none"/>'; }
     objs().forEach((o, i) => { s += objSVG(o, i); });
+    GROUP.forEach(i => { const o = objs()[i]; if (!o) return; const b = bbox(o);
+      s += '<rect x="' + (b.x - 6) + '" y="' + (b.y - 6) + '" width="' + (b.w + 12) + '" height="' + (b.h + 12) + '" fill="rgba(162,18,42,0.04)" stroke="#A2122A" stroke-width="2" stroke-dasharray="8 6" pointer-events="none"/>'; });
     if (S.sel >= 0 && objs()[S.sel] && S.editing !== S.sel) {
       const o = objs()[S.sel], b = bbox(o);
       s += '<rect x="' + (b.x - 6) + '" y="' + (b.y - 6) + '" width="' + (b.w + 12) + '" height="' + (b.h + 12) + '" fill="none" stroke="#A2122A" stroke-width="2" stroke-dasharray="8 6" pointer-events="none"/>';
@@ -1059,7 +1062,7 @@
     ed.addEventListener('paste', e => { e.preventDefault(); const f = [...(e.clipboardData ? e.clipboardData.files : [])].find(x => x.type.startsWith('image/')); if (f) { stopEditing(); addImage(f); return; } document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
     ed.addEventListener('keydown', e => {
       e.stopPropagation();
-      if (e.key === 'Escape') { e.preventDefault(); stopEditing(); }
+      if (e.key === 'Escape') { e.preventDefault(); stopEditing(); setTool('select', true); }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'x') { e.preventDefault(); document.execCommand('strikeThrough'); }
     });
   }
@@ -1090,29 +1093,42 @@
       if (e.target.dataset && e.target.dataset.h && S.sel >= 0) {
         snap(); const o = objs()[S.sel];
         act = { k:'resize', o, sx:p[0], sy:p[1], w0:o.bw, h0:o.bh, ratio:o.bh / o.bw };
+      } else if (hit >= 0 && (e.shiftKey || e.metaKey || e.ctrlKey)) {
+        if (S.sel >= 0) { GROUP.add(S.sel); S.sel = -1; }
+        GROUP.has(hit) ? GROUP.delete(hit) : GROUP.add(hit);
+        if (GROUP.size === 1) { S.sel = [...GROUP][0]; GROUP.clear(); }
+        render(); return;
+      } else if (hit >= 0 && GROUP.has(hit)) {
+        snap();
+        act = { k:'gmove', sx:p[0], sy:p[1], moved:false, items:[...GROUP].map(i => ({ o:objs()[i], orig:JSON.parse(JSON.stringify(objs()[i])) })) };
       } else if (hit >= 0) {
-        S.sel = hit; snap();
-        act = { k:'move', o:objs()[hit], sx:p[0], sy:p[1], orig: JSON.parse(JSON.stringify(objs()[hit])), moved:false };
-        render();
-      } else { S.sel = -1; render(); return; }
+        startMove(hit, p);
+      } else {
+        GROUP.clear(); S.sel = -1; render();
+        act = { k:'marq', sx:p[0], sy:p[1], add:e.shiftKey };
+        act.el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        act.el.setAttribute('fill', 'rgba(162,18,42,0.06)'); act.el.setAttribute('stroke', '#A2122A'); act.el.setAttribute('stroke-width', '2'); act.el.setAttribute('stroke-dasharray', '8 6');
+        svg.appendChild(act.el);
+      }
       svg.setPointerCapture(e.pointerId); return;
     }
+    if (hit >= 0 && ['text','sticky','num','rect','arrow','pen','hl'].includes(S.tool) && ['text','num','img'].includes(objs()[hit].t)) {
+      startMove(hit, p); svg.setPointerCapture(e.pointerId); return;
+    }
+    if (S.tool !== 'select') GROUP.clear();
     if (S.tool === 'erase') { snap(); act = { k:'erase', did:false }; eraseAt(e); svg.setPointerCapture(e.pointerId); return; }
     if (S.tool === 'text') {
-      if (hit >= 0 && objs()[hit].t === 'text') { snap(); S.editing = hit; S.sel = hit; render(); return; }
       snap();
       objs().push({ t:'text', x:p[0], y:p[1] - 20, bw:520, bh:70, html:'', c:S.color, f:S.fill, fs:S.font, bd:S.border, bdw:Math.max(2, Math.round(S.size)) });
       S.editing = objs().length - 1; S.sel = S.editing; render(); save(); return;
     }
     if (S.tool === 'num') {
-      if (hit >= 0) { S.sel = hit; render(); return; }
       snap();
       const nums = objs().filter(o => o.t === 'num').map(o => o.n);
       objs().push({ t:'num', x:p[0], y:p[1], r: Math.max(26, 18 + S.size * 3), n: nums.length ? Math.max(...nums) + 1 : 1, c:S.color });
       S.sel = -1; render(); save(); return;
     }
     if (S.tool === 'sticky') {
-      if (hit >= 0 && objs()[hit].t === 'text') { snap(); S.editing = hit; S.sel = hit; render(); return; }
       snap();
       objs().push({ t:'text', sticky:true, x:p[0] - 160, y:p[1] - 40, bw:320, bh:320, minh:320, html:'', c:'#270707', f:S.note, fs:28, bd:false, bdw:3 });
       S.editing = objs().length - 1; S.sel = S.editing; render(); save(); return;
@@ -1132,6 +1148,17 @@
     }
     svg.setPointerCapture(e.pointerId);
   });
+  function shiftObj(o, g, dx, dy) {
+    if (o.t === 'path') o.pts = g.pts.map(q => [r1(q[0] + dx), r1(q[1] + dy)]);
+    else if (o.t === 'arrow') { o.x1 = r1(g.x1 + dx); o.y1 = r1(g.y1 + dy); o.x2 = r1(g.x2 + dx); o.y2 = r1(g.y2 + dy); }
+    else { o.x = r1(g.x + dx); o.y = r1(g.y + dy); }
+  }
+  function startMove(hit, p) {
+    GROUP.clear();
+    S.sel = hit; snap();
+    act = { k:'move', o:objs()[hit], sx:p[0], sy:p[1], orig: JSON.parse(JSON.stringify(objs()[hit])), moved:false };
+    render(); syncFromSel();
+  }
   svg.addEventListener('pointermove', e => {
     if (!act) return;
     const p = pt(e);
@@ -1146,12 +1173,13 @@
       act.o = { t:'arrow', x1:act.sx, y1:act.sy, x2:p[0], y2:p[1], c:S.color, w:S.size };
       act.el.innerHTML = objSVG(act.o, -1);
     } else if (act.k === 'move') {
-      const dx = p[0] - act.sx, dy = p[1] - act.sy, o = act.o, g = act.orig;
-      act.moved = true;
-      if (o.t === 'path') o.pts = g.pts.map(q => [r1(q[0] + dx), r1(q[1] + dy)]);
-      else if (o.t === 'arrow') { o.x1 = r1(g.x1 + dx); o.y1 = r1(g.y1 + dy); o.x2 = r1(g.x2 + dx); o.y2 = r1(g.y2 + dy); }
-      else { o.x = r1(g.x + dx); o.y = r1(g.y + dy); }
-      render();
+      act.moved = true; shiftObj(act.o, act.orig, p[0] - act.sx, p[1] - act.sy); render();
+    } else if (act.k === 'gmove') {
+      act.moved = true; act.items.forEach(it => shiftObj(it.o, it.orig, p[0] - act.sx, p[1] - act.sy)); render();
+    } else if (act.k === 'marq') {
+      const x = Math.min(act.sx, p[0]), y = Math.min(act.sy, p[1]), w = Math.abs(p[0] - act.sx), h = Math.abs(p[1] - act.sy);
+      act.r = { x, y, w, h };
+      ['x','y','width','height'].forEach((k, j) => act.el.setAttribute(k, [x, y, w, h][j]));
     } else if (act.k === 'resize') {
       const o = act.o; let nw = Math.max(40, act.w0 + (p[0] - act.sx));
       o.bw = r1(nw);
@@ -1170,7 +1198,15 @@
       if (big) { snap(); objs().push(a.o); save(); }
       render();
     } else if (a.k === 'rect' || a.k === 'arrow') { a.el.remove(); }
-    else if (a.k === 'move') { if (!a.moved) S.undo.pop(); save(); }
+    else if (a.k === 'move' || a.k === 'gmove') { if (!a.moved) S.undo.pop(); save(); }
+    else if (a.k === 'marq') {
+      a.el.remove();
+      if (a.r && a.r.w > 4 && a.r.h > 4) {
+        objs().forEach((o, i) => { const b = bbox(o); if (b.x < a.r.x + a.r.w && b.x + b.w > a.r.x && b.y < a.r.y + a.r.h && b.y + b.h > a.r.y) GROUP.add(i); });
+        if (GROUP.size === 1) { S.sel = [...GROUP][0]; GROUP.clear(); syncFromSel(); }
+      }
+      render();
+    }
     else if (a.k === 'resize') save();
     else if (a.k === 'erase') { if (!a.did) S.undo.pop(); save(); }
   }
@@ -1232,11 +1268,11 @@
   window.addEventListener('drop', e => { if (hasFiles(e)) e.preventDefault(); });
 
   /* ---------- toolbar ---------- */
-  function setTool(t) {
+  function setTool(t, keepSel) {
     S.tool = t;
     document.querySelectorAll('.tool[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
     svg.setAttribute('class', 't-' + t);
-    if (t !== 'select') { S.sel = -1; render(); }
+    if (t !== 'select' && !keepSel) { S.sel = -1; GROUP.clear(); render(); }
   }
   document.querySelectorAll('.tool[data-tool]').forEach(b => b.addEventListener('click', () => { if (S.editing >= 0) stopEditing(); setTool(b.dataset.tool); }));
 
@@ -1276,7 +1312,10 @@
   svg.addEventListener('pointerup', () => { if (S.tool === 'select' && S.sel >= 0) syncFromSel(); });
   $('bvUndo').addEventListener('click', undo);
   $('bvRedo').addEventListener('click', redo);
-  function delSel() { if (S.sel < 0) return; snap(); objs().splice(S.sel, 1); S.sel = -1; render(); save(); }
+  function delSel() {
+    if (GROUP.size) { snap(); [...GROUP].sort((a, b) => b - a).forEach(i => objs().splice(i, 1)); GROUP.clear(); S.sel = -1; render(); save(); return; }
+    if (S.sel < 0) return; snap(); objs().splice(S.sel, 1); S.sel = -1; render(); save();
+  }
   $('bvDelSel').addEventListener('click', delSel);
 
   document.addEventListener('keydown', e => {
@@ -1286,9 +1325,10 @@
     if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
     if (mod && k === 'd' && S.sel >= 0) { e.preventDefault(); snap(); const c = JSON.parse(JSON.stringify(objs()[S.sel])); if (c.t === 'path') c.pts = c.pts.map(q => [q[0] + 30, q[1] + 30]); else if (c.t === 'arrow') { c.x1 += 30; c.y1 += 30; c.x2 += 30; c.y2 += 30; } else { c.x += 30; c.y += 30; } objs().push(c); S.sel = objs().length - 1; render(); save(); return; }
+    if ((k === 'delete' || k === 'backspace') && (S.sel >= 0 || GROUP.size)) { e.preventDefault(); delSel(); return; }
+    if (mod && k === 'a') { e.preventDefault(); if (S.editing >= 0) stopEditing(); setTool('select'); S.sel = -1; GROUP.clear(); objs().forEach((o, i) => GROUP.add(i)); if (GROUP.size === 1) { S.sel = 0; GROUP.clear(); } render(); return; }
+    if (k === 'escape') { if (view.classList.contains('presenting')) exitPresent(); if (S.tool !== 'select') setTool('select'); else { S.sel = -1; GROUP.clear(); render(); } return; }
     if (mod) return;
-    if ((k === 'delete' || k === 'backspace') && S.sel >= 0) { e.preventDefault(); delSel(); return; }
-    if (k === 'escape') { if (view.classList.contains('presenting')) exitPresent(); S.sel = -1; render(); return; }
     const map = { v:'select', p:'pen', h:'hl', t:'text', b:'rect', a:'arrow', e:'erase', n:'num', s:'sticky' };
     if (map[k]) setTool(map[k]);
   });
@@ -1300,7 +1340,7 @@
     pageSel.value = board().bg || 'dots';
     if (typeof updateLogoBtn === 'function') updateLogoBtn();
   }
-  function switchTo(i) { if (S.editing >= 0) stopEditing(); data.cur = i; S.sel = -1; S.undo = []; S.redo = []; fillSelect(); render(); save(); }
+  function switchTo(i) { if (S.editing >= 0) stopEditing(); data.cur = i; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = []; fillSelect(); render(); save(); }
   $('bvSelect').addEventListener('change', e => switchTo(+e.target.value));
   $('bvName').addEventListener('input', e => { board().name = e.target.value; const opt = $('bvSelect').options[data.cur]; if (opt) opt.textContent = e.target.value || 'Untitled board'; save(); });
   $('bvName').addEventListener('keydown', e => e.stopPropagation());
@@ -1314,7 +1354,7 @@
     });
   }
   twoTap($('bvDel'), 'Delete board', 'Tap again to delete', () => { data.boards.splice(data.cur, 1); if (!data.boards.length) data.boards.push(newBoard('ASK JP Audit')); switchTo(Math.max(0, data.cur - 1)); });
-  twoTap($('bvClear'), 'Clear board', 'Tap again to clear', () => { snap(); board().objs = []; S.sel = -1; S.editing = -1; render(); save(); });
+  twoTap($('bvClear'), 'Clear board', 'Tap again to clear', () => { snap(); board().objs = []; S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); });
 
   /* ---------- present ---------- */
   function exitPresent() { view.classList.remove('presenting'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
