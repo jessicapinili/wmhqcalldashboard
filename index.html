@@ -311,6 +311,30 @@
   .bv-stage[data-snap="bottom"]::before { left:18px; right:18px; bottom:18px; height:64px; }
   .bv-stage[data-snap="left"]::before { top:18px; bottom:18px; left:18px; width:64px; }
   .bv-stage[data-snap="right"]::before { top:18px; bottom:18px; right:18px; width:64px; }
+  .bv-pager { position:absolute; left:30px; bottom:30px; z-index:5; display:flex; align-items:center; gap:2px; background:#fff; border:1px solid #eadfdf; border-radius:100px; padding:4px; box-shadow:0 6px 20px rgba(39,7,7,0.10); }
+  .bv-pbtn, .bv-plabel { border:none; background:none; font-family:'DM Sans',sans-serif; color:#270707; cursor:pointer; border-radius:100px; height:32px; }
+  .bv-pbtn { min-width:32px; font-size:20px; font-weight:600; line-height:1; }
+  .bv-pbtn.add { font-size:12px; font-weight:700; padding:0 12px; }
+  .bv-pbtn:disabled { opacity:0.3; cursor:default; }
+  .bv-plabel { font-family:var(--mono); font-size:11px; padding:0 10px; min-width:96px; }
+  .bv-pbtn:not(:disabled):hover, .bv-plabel:hover { background:#FAF6F0; }
+  .bv-psep { width:1px; height:20px; background:#eee5e5; margin:0 4px; }
+  .bv-plist { position:absolute; left:30px; bottom:84px; z-index:8; width:430px; max-height:60vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 18px 48px rgba(39,7,7,0.25); padding:10px; }
+  .bv-plist.hidden { display:none; }
+  .bv-prow { display:flex; align-items:center; gap:3px; border-radius:12px; padding:2px 4px 2px 2px; }
+  .bv-prow:hover { background:#FAF6F0; }
+  .bv-prow.cur { background:#f6eeee; }
+  .bv-popen { flex:1; min-width:0; display:flex; align-items:center; gap:10px; background:none; border:none; cursor:pointer; padding:9px 8px; text-align:left; font-family:'DM Sans',sans-serif; }
+  .bv-pnum { width:24px; height:24px; border-radius:50%; background:#270707; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .bv-prow:not(.cur) .bv-pnum { background:#eadfdf; color:#270707; }
+  .bv-pname { font-size:14px; font-weight:700; color:#270707; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bv-pmeta { font-size:11px; color:#9a8a8a; margin-left:auto; white-space:nowrap; }
+  .bv-pinput { flex:1; font-family:'DM Sans',sans-serif; font-size:13px; padding:6px 10px; border-radius:100px; border:1px solid #e3d9d9; }
+  .bv-pact { font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; border:1px solid #eadfdf; background:#fff; color:#6b5c5c; padding:4px 8px; border-radius:100px; cursor:pointer; opacity:0; transition:opacity .15s; }
+  .bv-prow:hover .bv-pact, .bv-pact.armed { opacity:1; }
+  .bv-pact:disabled { opacity:0 !important; cursor:default; }
+  .bv-pact.del.armed { background:#A2122A; color:#fff; border-color:#A2122A; }
+  .bv-prow-add { display:flex; gap:8px; padding:10px 6px 4px; border-top:1px solid #f0e8e8; margin-top:6px; }
 </style>
 </head>
 <body data-call="mastermind" data-mode="view">
@@ -922,7 +946,7 @@
     <button class="bv-btn primary" id="bvSave" title="Save (Cmd/Ctrl+S)">Save</button>
     <div class="bv-spacer"></div>
     <label class="bv-btn" id="bvLogoBtn" title="Swap the faint background logo">Change logo<input type="file" id="bvLogo" accept="image/*" hidden></label>
-    <button class="bv-btn" id="bvClear">Clear board</button>
+    <button class="bv-btn" id="bvClear">Clear page</button>
     <button class="bv-btn" id="bvExport">Export</button>
     <button class="bv-btn primary" id="bvPresent">Present</button>
   </div>
@@ -997,9 +1021,13 @@
     ['ASK JP Audit', 'Call Audit', 'WMHQ Training'].forEach(n => { if (!data.boards.some(b => (b.name || '').toLowerCase() === n.toLowerCase())) data.boards.push(newBoard(n)); });
     data.namesV2 = true;
   }
-  function newBoard(name) { return { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, objs:[] }; }
+  function pageId() { return 'p' + Math.random().toString(36).slice(2, 9); }
+  function newBoard(name) { return { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, pages:[{ id:pageId(), objs:[] }], cp:0 }; }
   const board = () => data.boards[data.cur] || data.boards[0];
-  const objs = () => board().objs;
+  function migratePages(b) { if (!Array.isArray(b.pages) || !b.pages.length) { b.pages = [{ id:pageId(), objs: Array.isArray(b.objs) ? b.objs : [] }]; b.cp = 0; } delete b.objs; if (!(b.cp >= 0 && b.cp < b.pages.length)) b.cp = 0; }
+  data.boards.forEach(migratePages);
+  const page = () => { const b = board(); migratePages(b); return b.pages[b.cp]; };
+  const objs = () => page().objs;
 
 
   const LINE = '#eadfdf', LINE2 = '#f1e9e9';
@@ -1044,8 +1072,8 @@
     }, 250);
   }
   function snap() { S.undo.push(JSON.stringify(objs())); if (S.undo.length > 80) S.undo.shift(); S.redo = []; }
-  function undo() { if (!S.undo.length) return; S.redo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.undo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
-  function redo() { if (!S.redo.length) return; S.undo.push(JSON.stringify(objs())); board().objs = JSON.parse(S.redo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
+  function undo() { if (!S.undo.length) return; S.redo.push(JSON.stringify(objs())); page().objs = JSON.parse(S.undo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
+  function redo() { if (!S.redo.length) return; S.undo.push(JSON.stringify(objs())); page().objs = JSON.parse(S.redo.pop()); S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); }
 
   const r1 = n => Math.round(n * 10) / 10;
   function pt(e) { const m = svg.getScreenCTM().inverse(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m); return [r1(p.x), r1(p.y)]; }
@@ -1601,9 +1629,9 @@
   data.boards.forEach(b => { if (!b.type) { const m = TYPES.find(t => t.toLowerCase() === (b.name || '').trim().toLowerCase()); b.type = m || TYPES[0]; } });
   $('bvType').innerHTML = TYPES.map(t => '<option value="' + t + '">' + t + '</option>').join('');
   $('bvType').addEventListener('change', e => { board().type = e.target.value; try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(err) {} renderLibrary(); });
-  data.boards.forEach(b => { if (!b.savedAt && (b.name || (b.objs && b.objs.length))) b.savedAt = Date.now(); });
-  let savedSnap = JSON.stringify(board().objs);
-  const isDirty = () => JSON.stringify(board().objs) !== savedSnap;
+  data.boards.forEach(b => { if (!b.savedAt && (b.name || (b.pages && b.pages.some(pg => pg.objs.length)))) b.savedAt = Date.now(); });
+  let savedSnap = JSON.stringify(board().pages);
+  const isDirty = () => JSON.stringify(board().pages) !== savedSnap;
   const fmtWhen = t => { if (!t) return 'Not saved yet'; const d = new Date(t); return 'Saved ' + d.toLocaleDateString('en-AU', { day:'numeric', month:'short' }) + ', ' + d.toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit' }); };
   function setStatus() {
     const st = $('bvStatus');
@@ -1616,7 +1644,7 @@
     if (S.editing >= 0) stopEditing();
     if (!(board().name || '').trim()) board().name = 'Untitled board';
     board().savedAt = Date.now();
-    savedSnap = JSON.stringify(board().objs);
+    savedSnap = JSON.stringify(board().pages);
     $('bvName').value = board().name;
     try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) { alert('This board is too full to save in this browser. Try removing an image or using smaller screenshots.'); return false; }
     setStatus(); renderLibrary();
@@ -1628,12 +1656,12 @@
     $('bvType').value = board().type || TYPES[0];
     pageSel.value = board().bg || 'dots';
     if (typeof updateLogoBtn === 'function') updateLogoBtn();
-    setStatus(); renderLibrary();
+    setStatus(); renderLibrary(); if (typeof updatePager === 'function') updatePager();
   }
   function switchTo(i) {
     if (S.editing >= 0) stopEditing();
     data.cur = i; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = [];
-    savedSnap = JSON.stringify(board().objs);
+    savedSnap = JSON.stringify(board().pages);
     if (typeof fitView === 'function') fitView();
     fillSelect(); render(); save();
   }
@@ -1656,7 +1684,7 @@
       if (a === 'cancel') { modal.classList.add('hidden'); return; }
       if (a === 'save') { board().name = inp.value.trim() || board().name || 'Untitled board'; if (!saveBoard(false)) return; }
       if (a === 'discard') {
-        if (board().savedAt) board().objs = JSON.parse(savedSnap);
+        if (board().savedAt) { board().pages = JSON.parse(savedSnap); board().cp = Math.min(board().cp, board().pages.length - 1); }
         else { data.boards.splice(data.cur, 1); if (!data.boards.length) data.boards.push(newBoard('Untitled board')); data.cur = Math.min(data.cur, data.boards.length - 1); }
         try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) {}
       }
@@ -1672,7 +1700,7 @@
       + '<button class="bv-libnew" id="bvNew"' + (full ? ' disabled title="You have 15 boards. Delete one to make room."' : '') + '>+ New board</button></div>'
       + (full ? '<div class="bv-libfull">15 boards is the limit. Delete one to make a new board.</div>' : '')
       + data.boards.map((b, i) => '<div class="bv-lib-row' + (i === data.cur ? ' cur' : '') + '" data-i="' + i + '">'
-        + '<button class="bv-lib-open" data-i="' + i + '"><span class="bv-lib-name">' + esc(b.name || 'Untitled board') + '</span><span class="bv-lib-when"><span class="bv-lib-type">' + esc(b.type || TYPES[0]) + '</span> · ' + (i === data.cur && isDirty() ? 'Unsaved changes' : fmtWhen(b.savedAt)) + '</span></button>'
+        + '<button class="bv-lib-open" data-i="' + i + '"><span class="bv-lib-name">' + esc(b.name || 'Untitled board') + '</span><span class="bv-lib-when"><span class="bv-lib-type">' + esc(b.type || TYPES[0]) + '</span> · ' + ((b.pages && b.pages.length > 1) ? b.pages.length + ' pages · ' : '') + (i === data.cur && isDirty() ? 'Unsaved changes' : fmtWhen(b.savedAt)) + '</span></button>'
         + '<button class="bv-lib-act" data-dup="' + i + '" title="Duplicate"' + (full ? ' disabled' : '') + '>Copy</button>'
         + '<button class="bv-lib-act del" data-del="' + i + '" title="Delete">Delete</button></div>').join('');
     lib.querySelector('#bvNew').addEventListener('click', () => {
@@ -1737,7 +1765,7 @@
       clearTimeout(t); armed = false; btn.textContent = label; btn.classList.remove('warn'); fn();
     });
   }
-  twoTap($('bvClear'), 'Clear board', 'Tap again to clear', () => { snap(); board().objs = []; S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); });
+  twoTap($('bvClear'), 'Clear page', 'Tap again to clear', () => { snap(); page().objs = []; S.sel = -1; S.editing = -1; GROUP.clear(); render(); save(); });
 
   /* ---------- minimise toolbar ---------- */
   const mini = document.createElement('div'); mini.className = 'bv-minitools';
@@ -1909,22 +1937,26 @@
   }
   function fileBase() { const d = new Date(); return ((board().name || 'WMHQ board').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'WMHQ-board') + '-' + d.toISOString().slice(0,10); }
   function download(blob, name) { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
-  function makePDF(jpegDataURL, wPt, hPt) {
-    const bin = atob(jpegDataURL.split(',')[1]); const img = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) img[i] = bin.charCodeAt(i);
-    const iw = +jpegDataURL._w, ih = +jpegDataURL._h;
+  function makePDF(imgs, wPt, hPt) {
     const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
     const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
     push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
     const obj = (n, body) => { offs[n] = len; push(n + ' 0 obj\n'); body(); push('\nendobj\n'); };
+    const N = imgs.length, kids = [];
+    for (let i = 0; i < N; i++) kids.push((3 + i * 3) + ' 0 R');
     obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
-    obj(2, () => push('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
-    obj(3, () => push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + wPt + ' ' + hPt + '] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>'));
-    obj(4, () => { push('<< /Type /XObject /Subtype /Image /Width ' + iw + ' /Height ' + ih + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + img.length + ' >>\nstream\n'); push(img); push('\nendstream'); });
-    const content = 'q ' + wPt + ' 0 0 ' + hPt + ' 0 0 cm /Im0 Do Q';
-    obj(5, () => push('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream'));
-    const xref = len;
-    let x = 'xref\n0 6\n0000000000 65535 f \n'; for (let n = 1; n <= 5; n++) x += String(offs[n]).padStart(10, '0') + ' 00000 n \n';
-    push(x + 'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+    obj(2, () => push('<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + N + ' >>'));
+    imgs.forEach((im, i) => {
+      const pn = 3 + i * 3, xn = pn + 1, cn = pn + 2;
+      const bin = atob(im.data.split(',')[1]); const bytes = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+      obj(pn, () => push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + wPt + ' ' + hPt + '] /Resources << /XObject << /Im0 ' + xn + ' 0 R >> >> /Contents ' + cn + ' 0 R >>'));
+      obj(xn, () => { push('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + bytes.length + ' >>\nstream\n'); push(bytes); push('\nendstream'); });
+      const content = 'q ' + wPt + ' 0 0 ' + hPt + ' 0 0 cm /Im0 Do Q';
+      obj(cn, () => push('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream'));
+    });
+    const total = 2 + N * 3, xref = len;
+    let x = 'xref\n0 ' + (total + 1) + '\n0000000000 65535 f \n'; for (let n = 1; n <= total; n++) x += String(offs[n]).padStart(10, '0') + ' 00000 n \n';
+    push(x + 'trailer\n<< /Size ' + (total + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
     return new Blob(parts, { type:'application/pdf' });
   }
   async function exportAs(kind, area) {
@@ -1932,14 +1964,26 @@
     const prevSel = S.sel; S.sel = -1; render();
     try {
       const c = await renderCanvas(area, 2);
-      const name = fileBase() + (area ? '-area' : '');
+      const name = fileBase() + (board().pages.length > 1 ? '-page-' + (board().cp + 1) : '') + (area ? '-area' : '');
       if (kind === 'png') c.toBlob(b => download(b, name + '.png'), 'image/png');
-      else {
-        const url = new String(c.toDataURL('image/jpeg', 0.92)); url._w = c.width; url._h = c.height;
-        download(makePDF(url, Math.round(c.width / 2 * 0.75), Math.round(c.height / 2 * 0.75)), name + '.pdf');
-      }
+      else download(makePDF([{ data:c.toDataURL('image/jpeg', 0.92), w:c.width, h:c.height }], Math.round(c.width / 2 * 0.75), Math.round(c.height / 2 * 0.75)), name + '.pdf');
     } catch(err) { alert('Export failed. If this board has a very large image, try removing it and exporting again.'); }
     S.sel = prevSel; render();
+  }
+
+  async function exportAllPDF() {
+    if (S.editing >= 0) stopEditing();
+    const b = board(), keep = b.cp, prevSel = S.sel; S.sel = -1; GROUP.clear();
+    try {
+      const imgs = [];
+      for (let i = 0; i < b.pages.length; i++) {
+        b.cp = i; resolveLinks(); render();
+        const c = await renderCanvas(null, 2);
+        imgs.push({ data:c.toDataURL('image/jpeg', 0.9), w:c.width, h:c.height });
+      }
+      download(makePDF(imgs, 1440, 810), fileBase() + '-all-pages.pdf');
+    } catch(err) { alert('Export failed. If a page has very large images, try removing one and exporting again.'); }
+    b.cp = keep; S.sel = prevSel; render(); updatePager();
   }
 
   /* ---------- export menu (top button + right click) ---------- */
@@ -1953,8 +1997,9 @@
     menu.style.left = Math.min(x, innerWidth - r.width - 10) + 'px'; menu.style.top = Math.min(y, innerHeight - r.height - 10) + 'px';
   }
   const boardItems = () => [
-    ['Export whole board as PNG', () => exportAs('png')],
-    ['Export whole board as PDF', () => exportAs('pdf')],
+    ['Export this page as PNG', () => exportAs('png')],
+    ['Export this page as PDF', () => exportAs('pdf')],
+    ...(board().pages.length > 1 ? [['Export all ' + board().pages.length + ' pages as one PDF', exportAllPDF]] : []),
     '-',
     ['Select an area to export', startArea]
   ];
@@ -2076,8 +2121,107 @@
   }, true);
   svg.addEventListener('pointermove', e => { if (!pan) return; e.stopImmediatePropagation(); V.x = pan.vx - (e.clientX - pan.sx) * pan.u; V.y = pan.vy - (e.clientY - pan.sy) * pan.u; setView(); }, true);
   svg.addEventListener('pointerup', e => { if (!pan) return; e.stopImmediatePropagation(); pan = null; }, true);
+  /* ---------- pages ---------- */
+  const pager = document.createElement('div'); pager.className = 'bv-pager';
+  pager.innerHTML = '<button class="bv-pbtn" data-p="prev" title="Previous page (Page Up)">&#8249;</button>'
+    + '<button class="bv-plabel" data-p="list" title="All pages"></button>'
+    + '<button class="bv-pbtn" data-p="next" title="Next page (Page Down)">&#8250;</button>'
+    + '<span class="bv-psep"></span><button class="bv-pbtn add" data-p="add" title="Add a page">+ Page</button>';
+  document.querySelector('.bv-stage').appendChild(pager);
+  const plist = document.createElement('div'); plist.className = 'bv-plist hidden'; document.querySelector('.bv-stage').appendChild(plist);
+  function updatePager() {
+    const b = board();
+    pager.querySelector('.bv-plabel').textContent = 'Page ' + (b.cp + 1) + ' of ' + b.pages.length;
+    pager.querySelector('[data-p=prev]').disabled = b.cp === 0;
+    pager.querySelector('[data-p=next]').disabled = b.cp >= b.pages.length - 1;
+    if (!plist.classList.contains('hidden')) renderPList();
+  }
+  function goPage(i) {
+    const b = board(); if (i < 0 || i >= b.pages.length || i === b.cp) return;
+    if (S.editing >= 0) stopEditing();
+    b.cp = i; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = [];
+    render(); save(); updatePager();
+  }
+  function addPage(copyCurrent) {
+    const b = board(); if (S.editing >= 0) stopEditing();
+    const np = { id:pageId(), objs: copyCurrent ? relinkCopies(JSON.parse(JSON.stringify(page().objs))) : [] };
+    b.pages.splice(b.cp + 1, 0, np);
+    b.cp = b.cp + 1; S.sel = -1; GROUP.clear(); S.undo = []; S.redo = [];
+    render(); save(); updatePager();
+  }
+  function renderPList() {
+    const b = board();
+    plist.innerHTML = '<div class="bv-eyebrow" style="padding:6px 8px 8px">PAGES · ' + b.pages.length + '</div>'
+      + b.pages.map((pg, i) => '<div class="bv-prow' + (i === b.cp ? ' cur' : '') + '">'
+        + '<button class="bv-popen" data-i="' + i + '"><span class="bv-pnum">' + (i + 1) + '</span><span class="bv-pname">' + esc(pg.name || 'Page ' + (i + 1)) + '</span><span class="bv-pmeta">' + pg.objs.length + ' item' + (pg.objs.length === 1 ? '' : 's') + '</span></button>'
+        + '<button class="bv-pact" data-up="' + i + '" title="Move up"' + (i === 0 ? ' disabled' : '') + '>&#8593;</button>'
+        + '<button class="bv-pact" data-down="' + i + '" title="Move down"' + (i === b.pages.length - 1 ? ' disabled' : '') + '>&#8595;</button>'
+        + '<button class="bv-pact" data-ren="' + i + '" title="Rename">Rename</button>'
+        + '<button class="bv-pact" data-dup="' + i + '" title="Duplicate">Copy</button>'
+        + '<button class="bv-pact del" data-del="' + i + '" title="Delete"' + (b.pages.length === 1 ? ' disabled' : '') + '>Delete</button></div>').join('')
+      + '<div class="bv-prow-add"><button class="bv-libnew" data-newp="1">+ Blank page</button><button class="bv-mbtn" data-copyp="1">Duplicate this page</button></div>';
+    plist.querySelectorAll('.bv-popen').forEach(x => x.addEventListener('click', () => { goPage(+x.dataset.i); renderPList(); }));
+    plist.querySelectorAll('[data-up]').forEach(x => x.addEventListener('click', () => movePage(+x.dataset.up, -1)));
+    plist.querySelectorAll('[data-down]').forEach(x => x.addEventListener('click', () => movePage(+x.dataset.down, 1)));
+    plist.querySelectorAll('[data-dup]').forEach(x => x.addEventListener('click', () => {
+      const i = +x.dataset.dup, src = b.pages[i];
+      b.pages.splice(i + 1, 0, { id:pageId(), name: src.name ? src.name + ' copy' : '', objs: relinkCopies(JSON.parse(JSON.stringify(src.objs))) });
+      if (i < b.cp) b.cp++;
+      save(); updatePager(); renderPList();
+    }));
+    plist.querySelectorAll('[data-ren]').forEach(x => x.addEventListener('click', () => {
+      const i = +x.dataset.ren, row = x.closest('.bv-prow'), nameEl = row.querySelector('.bv-pname');
+      const inp = document.createElement('input'); inp.className = 'bv-pinput'; inp.value = b.pages[i].name || ''; inp.placeholder = 'Page ' + (i + 1);
+      nameEl.replaceWith(inp); inp.focus(); inp.select();
+      const done = () => { b.pages[i].name = inp.value.trim(); save(); renderPList(); };
+      inp.addEventListener('click', ev => ev.stopPropagation());
+      inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') done(); if (ev.key === 'Escape') renderPList(); });
+      inp.addEventListener('blur', done);
+    }));
+    plist.querySelectorAll('[data-del]').forEach(x => {
+      let armed = false;
+      x.addEventListener('click', () => {
+        if (b.pages.length === 1) return;
+        if (!armed) { armed = true; x.textContent = 'Sure?'; x.classList.add('armed'); setTimeout(() => { armed = false; x.textContent = 'Delete'; x.classList.remove('armed'); }, 3000); return; }
+        const i = +x.dataset.del;
+        if (S.editing >= 0) stopEditing();
+        b.pages.splice(i, 1);
+        if (b.cp >= b.pages.length || i < b.cp) b.cp = Math.max(0, b.cp - (i <= b.cp ? 1 : 0));
+        b.cp = Math.min(b.cp, b.pages.length - 1);
+        S.sel = -1; GROUP.clear(); S.undo = []; S.redo = [];
+        render(); save(); updatePager(); renderPList();
+      });
+    });
+    plist.querySelector('[data-newp]').addEventListener('click', () => { addPage(false); renderPList(); });
+    plist.querySelector('[data-copyp]').addEventListener('click', () => { addPage(true); renderPList(); });
+  }
+  function movePage(i, dir) {
+    const b = board(), j = i + dir; if (j < 0 || j >= b.pages.length) return;
+    const [pg] = b.pages.splice(i, 1); b.pages.splice(j, 0, pg);
+    if (b.cp === i) b.cp = j; else if (b.cp === j) b.cp = i;
+    save(); updatePager(); renderPList();
+  }
+  pager.addEventListener('click', e => {
+    const k = e.target.closest('[data-p]'); if (!k) return;
+    const a = k.dataset.p, b = board();
+    if (a === 'prev') goPage(b.cp - 1);
+    if (a === 'next') goPage(b.cp + 1);
+    if (a === 'add') addPage(false);
+    if (a === 'list') { if (plist.classList.contains('hidden')) { renderPList(); plist.classList.remove('hidden'); } else plist.classList.add('hidden'); }
+  });
+  document.addEventListener('pointerdown', e => { if (!plist.classList.contains('hidden') && !plist.contains(e.target) && !pager.contains(e.target)) plist.classList.add('hidden'); }, true);
+  document.addEventListener('keydown', e => {
+    if (view.classList.contains('hidden') || (e.target.closest && e.target.closest('input, select, [contenteditable="true"]'))) return;
+    if (e.key === 'PageDown') { e.preventDefault(); goPage(board().cp + 1); }
+    if (e.key === 'PageUp') { e.preventDefault(); goPage(board().cp - 1); }
+    if (view.classList.contains('presenting') && S.sel < 0 && !GROUP.size) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); goPage(board().cp + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goPage(board().cp - 1); }
+    }
+  });
+
   /* ---------- open / close ---------- */
-  function openBoard() { view.classList.remove('hidden'); fillSelect(); setColor(S.color, true); render(); }
+  function openBoard() { view.classList.remove('hidden'); fillSelect(); updatePager(); setColor(S.color, true); render(); }
   function closeBoard() { if (S.editing >= 0) stopEditing(); exitPresent(); view.classList.add('hidden'); }
   $('bvBack').addEventListener('click', closeBoard);
   const opener = document.getElementById('openAudits');
