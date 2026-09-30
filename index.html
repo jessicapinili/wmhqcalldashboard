@@ -233,6 +233,10 @@
   .bv-zfit { width:auto; padding:0 12px; font-size:12px; }
   .bv-zval { font-family:var(--mono); font-size:11px; min-width:52px; height:32px; }
   .bv-zbtn:hover, .bv-zval:hover { background:#FAF6F0; }
+  .btext.sticky.ios { border-radius:14px; box-shadow:0 8px 22px rgba(0,0,0,0.10); border:1px solid #E5E5EA !important; padding:56px 24px 22px; position:relative; }
+  .btext.sticky.ios::before { content:'\2039  Notes'; position:absolute; top:16px; left:20px; font:600 18px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; color:#E0A800; }
+  .btext.sticky.ios::first-line { font-weight:700; }
+  .sw.ios { background:#fff; border-radius:5px; box-shadow:inset 0 5px 0 #F4C430; }
   .btext.sticky { border-radius:6px; box-shadow:0 10px 24px rgba(39,7,7,0.12); padding:22px 24px; }
   #bsvg.t-erase { cursor:cell; }
   .btext { font-family:'DM Sans',sans-serif; line-height:1.35; white-space:pre-wrap; word-break:break-word; padding:14px 18px; border-radius:14px; box-sizing:border-box; outline:none; min-height:40px; }
@@ -1053,7 +1057,7 @@
   const pageSel = $('bvPage');
   pageSel.innerHTML = Object.keys(PAGES).map(k => '<option value="' + k + '">' + PAGES[k].label + '</option>').join('');
   pageSel.addEventListener('change', e => { board().bg = e.target.value; render(); save(); });
-  const NOTE_COLOURS = ['#F9E6AB','#F2C6D0','#E4C6DF','#F9D8BC','#C3D7B2','#BCD9F0'];
+  const NOTE_COLOURS = ['ios','#F9E6AB','#F2C6D0','#E4C6DF','#F9D8BC','#C3D7B2','#BCD9F0'];
   const GROUP = new Set();
   const FONTS = {
     dm:        { label:'DM Sans',         css:"'DM Sans', sans-serif" },
@@ -1119,8 +1123,9 @@
         + '<text x="' + o.x + '" y="' + o.y + '" text-anchor="middle" dominant-baseline="central" font-family="DM Sans, sans-serif" font-weight="800" font-size="' + Math.round(o.r * 1.05) + '" fill="' + tc + '" pointer-events="none">' + o.n + '</text>');
     }
     if (o.t === 'text') {
-      const st = 'font-family:' + fontCSS(o.ff).replace(/"/g, "'") + ';color:' + o.c + ';font-size:' + o.fs + 'px;background:' + (o.f === 'none' ? 'transparent' : o.f) + ';border:' + (o.bd ? Math.max(2, o.bdw || 3) + 'px solid ' + o.c : '0') + ';';
-      return g('<foreignObject x="' + o.x + '" y="' + o.y + '" width="' + o.bw + '" height="' + o.bh + '" style="overflow:visible"><div xmlns="http://www.w3.org/1999/xhtml" class="btext' + (o.sticky ? ' sticky' : '') + '" style="' + (o.minh ? 'min-height:' + o.minh + 'px;' : '') + st + '"' + (S.editing === i ? ' contenteditable="true"' : '') + '>' + safeHTML(o.html) + '</div></foreignObject>');
+      const ios = o.sticky && o.f === 'ios';
+      const st = 'font-family:' + (ios ? "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" : fontCSS(o.ff).replace(/"/g, "'")) + ';color:' + (ios ? '#1C1C1E' : o.c) + ';font-size:' + o.fs + 'px;background:' + (o.f === 'none' ? 'transparent' : ios ? '#FFFFFF' : o.f) + ';border:' + (o.bd ? Math.max(2, o.bdw || 3) + 'px solid ' + o.c : '0') + ';';
+      return g('<foreignObject x="' + o.x + '" y="' + o.y + '" width="' + o.bw + '" height="' + o.bh + '" style="overflow:visible"><div xmlns="http://www.w3.org/1999/xhtml" class="btext' + (o.sticky ? ' sticky' : '') + (ios ? ' ios' : '') + '" style="' + (o.minh ? 'min-height:' + o.minh + 'px;' : '') + st + '"' + (S.editing === i ? ' contenteditable="true"' : '') + '>' + safeHTML(o.html) + '</div></foreignObject>');
     }
     return '';
   }
@@ -1866,13 +1871,14 @@
   }
   function drawText(ctx, o) {
     const padX = o.stickyPad ? 24 : 18, padY = o.stickyPad ? 22 : 14, fs = o.fs, lh = fs * 1.35, maxW = o.bw - padX * 2 - (o.bd ? (o.bdw || 3) * 2 : 0);
-    const font = r => (r.i ? 'italic ' : '') + (r.b ? '700 ' : '400 ') + fs + 'px ' + fontCSS(o.ff);
+    const font = r => (r.i ? 'italic ' : '') + (r.b ? '700 ' : '400 ') + fs + 'px ' + (o.ios ? "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" : fontCSS(o.ff));
     if (o.f && o.f !== 'none') { ctx.fillStyle = o.f; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.bw, o.bh, 14); ctx.fill(); }
     if (o.bd) { const bw = Math.max(2, o.bdw || 3); ctx.strokeStyle = o.c; ctx.lineWidth = bw; ctx.beginPath(); ctx.roundRect(o.x + bw/2, o.y + bw/2, o.bw - bw, o.bh - bw, 14); ctx.stroke(); }
     ctx.fillStyle = o.c; ctx.textBaseline = 'alphabetic';
     const ox = o.x + padX + (o.bd ? (o.bdw || 3) : 0);
-    let y = o.y + padY + (o.bd ? (o.bdw || 3) : 0) + fs * 1.02;
-    textRuns(o.html).forEach(line => {
+    let y = o.y + (o.ios ? 56 : padY) + (o.bd ? (o.bdw || 3) : 0) + fs * 1.02;
+    textRuns(o.html).forEach((line, li) => {
+      if (o.ios && li === 0) line = line.map(r => ({ ...r, b:true }));
       let x = ox;
       const tokens = [];
       line.forEach(r => r.t.split(/(\s+)/).forEach(w => { if (w) tokens.push({ ...r, t: w }); }));
@@ -1930,7 +1936,11 @@
         ctx.fillStyle = isLight(o.c) ? '#270707' : '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.font = '800 ' + Math.round(o.r * 1.05) + 'px "DM Sans", sans-serif'; ctx.fillText(String(o.n), o.x, o.y + o.r * 0.04);
       } else if (o.t === 'text') {
-        if (o.sticky) { ctx.save(); ctx.shadowColor = 'rgba(39,7,7,0.14)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10; ctx.fillStyle = o.f; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.bw, o.bh, 6); ctx.fill(); ctx.restore(); drawText(ctx, { ...o, f:'none', stickyPad:true }); }
+        if (o.sticky && o.f === 'ios') { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.bw, o.bh, 14); ctx.fill(); ctx.restore();
+          ctx.strokeStyle = '#E5E5EA'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(o.x + 0.5, o.y + 0.5, o.bw - 1, o.bh - 1, 14); ctx.stroke();
+          ctx.fillStyle = '#E0A800'; ctx.font = "600 18px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif"; ctx.textBaseline = 'alphabetic'; ctx.fillText('\u2039  Notes', o.x + 20, o.y + 34);
+          drawText(ctx, { ...o, f:'none', c:'#1C1C1E', stickyPad:true, ios:true }); }
+        else if (o.sticky) { ctx.save(); ctx.shadowColor = 'rgba(39,7,7,0.14)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10; ctx.fillStyle = o.f; ctx.beginPath(); ctx.roundRect(o.x, o.y, o.bw, o.bh, 6); ctx.fill(); ctx.restore(); drawText(ctx, { ...o, f:'none', stickyPad:true }); }
         else drawText(ctx, o);
       }
       ctx.restore();
@@ -2055,7 +2065,7 @@
   function isLight(hex) { const h = (hex || '#000').replace('#',''); if (h.length < 6) return false; const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16); return (0.299*r + 0.587*g + 0.114*b) > 170; }
 
   /* ---------- sticky note colours ---------- */
-  $('bvNoteSw').innerHTML = NOTE_COLOURS.map(c => '<button class="sw" data-c="' + c + '" title="Sticky note ' + c + '" style="background:' + c + '"></button>').join('');
+  $('bvNoteSw').innerHTML = NOTE_COLOURS.map(c => c === 'ios' ? '<button class="sw ios" data-c="ios" title="iPhone-style note"></button>' : '<button class="sw" data-c="' + c + '" title="Sticky note ' + c + '" style="background:' + c + '"></button>').join('');
   function markNote() { $('bvNoteSw').querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.c === S.note)); }
   $('bvNoteSw').querySelectorAll('.sw').forEach(b => {
     b.addEventListener('mousedown', e => e.preventDefault());
