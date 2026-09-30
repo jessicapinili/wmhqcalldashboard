@@ -1847,7 +1847,7 @@
     const lines = [[]];
     (function walk(n, st) {
       n.childNodes.forEach(c => {
-        if (c.nodeType === 3) { lines[lines.length - 1].push({ t: c.nodeValue, ...st }); return; }
+        if (c.nodeType === 3) { c.nodeValue.split('\n').forEach((t, k) => { if (k) lines.push([]); if (t) lines[lines.length - 1].push({ t, ...st }); }); return; }
         if (c.nodeType !== 1) return;
         const tg = c.tagName;
         if (tg === 'BR') { lines.push([]); return; }
@@ -1856,8 +1856,10 @@
         if (tg === 'EM' || tg === 'I') ns.i = true;
         if (tg === 'U' || tg === 'A') ns.u = true;
         if (tg === 'S' || tg === 'STRIKE' || tg === 'DEL') ns.s = true;
-        if ((tg === 'DIV' || tg === 'P') && lines[lines.length - 1].length) lines.push([]);
+        const blk = tg === 'DIV' || tg === 'P' || tg === 'LI' || /^H[1-6]$/.test(tg);
+        if (blk && lines[lines.length - 1].length) lines.push([]);
         walk(c, ns);
+        if (blk && lines[lines.length - 1].length) lines.push([]);
       });
     })(root, {});
     return lines;
