@@ -2118,18 +2118,17 @@
       if (!txt || !txt.trim()) return;
       const place = async () => {
         if (act) { setTimeout(place, 300); return; }
-        if (document.fonts) { try { await document.fonts.load('400 40px ' + fontCSS('hand')); } catch(e) {} }
+        if (document.fonts) { try { await document.fonts.load('400 40px ' + fontCSS(S.ff)); } catch(e) {} }
         if (act) { setTimeout(place, 300); return; }
         const live = strokes.filter(o => objs().includes(o)); if (live.length !== strokes.length) return;
-        /* match the size of what was written: fit the text to the width of the handwriting, never taller than it */
-        const mc = document.createElement('canvas').getContext('2d'); mc.font = '400 100px ' + fontCSS('hand');
-        const per = mc.measureText(txt.trim()).width / 100 || 1;
-        const fs = Math.max(12, Math.min(200, Math.round(Math.min((x1 - x0) * rows / per, (y1 - y0) / rows * 0.95))));
-        const bw = Math.max(x1 - x0, rows === 1 ? per * fs : 0) + 36 + Math.ceil(fs * 0.4);
+        /* use the font and text size chosen in the toolbar; keep it where it was written */
+        const fs = S.font;
+        const mc = document.createElement('canvas').getContext('2d'); mc.font = '400 ' + fs + 'px ' + fontCSS(S.ff);
+        const bw = Math.max(rows === 1 ? 0 : x1 - x0, mc.measureText(txt.trim()).width / (rows === 1 ? 1 : rows * 0.8)) + 36 + Math.ceil(fs * 0.4);
         const th = rows * fs * 1.35;
         snap();
         page().objs = objs().filter(o => !strokes.includes(o));
-        objs().push({ t:'text', x:r1(x0 - 18), y:r1((y0 + y1) / 2 - th / 2 - 14), bw:Math.ceil(bw), bh:Math.ceil(th + 28), html:txt.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;'), c:strokes[0].c, f:'none', fs, ff:'hand', bd:false, bdw:3 });
+        objs().push({ t:'text', x:r1(x0 - 18), y:r1((y0 + y1) / 2 - th / 2 - 14), bw:Math.ceil(bw), bh:Math.ceil(th + 28), html:txt.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;'), c:strokes[0].c, f:'none', fs, ff:S.ff, bd:false, bdw:3 });
         S.sel = -1; render(); save();
       };
       place();
