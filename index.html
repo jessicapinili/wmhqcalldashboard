@@ -231,7 +231,8 @@
   .bv-zoom { position:absolute; right:30px; bottom:30px; z-index:5; display:flex; align-items:center; gap:2px; background:#fff; border:1px solid #eadfdf; border-radius:100px; padding:4px; box-shadow:0 6px 20px rgba(39,7,7,0.10); }
   .bv-zbtn, .bv-zval { border:none; background:none; font-family:'DM Sans',sans-serif; color:#270707; cursor:pointer; border-radius:100px; }
   .bv-zbtn { width:32px; height:32px; font-size:18px; font-weight:600; }
-  .bv-zfit { width:auto; padding:0 12px; font-size:12px; }
+  .bv-zfit { width:auto; padding:0 12px; font-size:12px; white-space:nowrap; }
+  #bvFree.on { background:#270707; color:#fff; }
   .bv-zval { font-family:var(--mono); font-size:11px; min-width:52px; height:32px; }
   .bv-zbtn:hover, .bv-zval:hover { background:#FAF6F0; }
   .btext.sticky.ios { border-radius:14px; box-shadow:0 8px 22px rgba(0,0,0,0.10); border:1px solid #E5E5EA !important; padding:56px 24px 22px; position:relative; }
@@ -1006,7 +1007,7 @@
       <button class="bv-btn" id="bvHideTools" title="Minimise the toolbar (backslash key)">Hide tools</button>
     </div>
   </div>
-  <div class="bv-stage"><div class="bv-zoom"><button class="bv-zbtn" id="bvZOut" title="Zoom out (Cmd/Ctrl -)">&minus;</button><button class="bv-zval" id="bvZVal" title="Fit to screen (Shift+1)">100%</button><button class="bv-zbtn" id="bvZIn" title="Zoom in (Cmd/Ctrl +)">+</button><button class="bv-zbtn bv-zfit" id="bvZFit" title="Fit to screen (Shift+1)">Fit</button></div><svg id="bsvg" class="t-pen" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div class="bv-stage"><div class="bv-zoom"><button class="bv-zbtn" id="bvZOut" title="Zoom out (Cmd/Ctrl -)">&minus;</button><button class="bv-zval" id="bvZVal" title="Fit to screen (Shift+1)">100%</button><button class="bv-zbtn" id="bvZIn" title="Zoom in (Cmd/Ctrl +)">+</button><button class="bv-zbtn bv-zfit" id="bvZFit" title="Fit to screen (Shift+1)">Fit</button><button class="bv-zbtn bv-zfit" id="bvFree" title="Switch between a fixed page and one big open canvas you can zoom and pan around">Open canvas</button></div><svg id="bsvg" class="t-pen" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg></div>
 </div>
 <script>
 /* ===== WMHQ AUDITS BOARD ===== */
@@ -1194,11 +1195,14 @@
   }
   function render() {
     resolveLinks();
+    const fb = document.getElementById('bvFree'); if (fb) { fb.textContent = page().free ? 'Page view' : 'Open canvas'; fb.classList.toggle('on', !!page().free); }
     const pg = PAGES[board().bg] || PAGES.dots;
     let s = '<defs>' + (pg.pattern || '')
       + '<filter id="bshadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#270707" flood-opacity="0.08"/></filter></defs>'
-      + '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="18" fill="' + pg.paper + '" filter="url(#bshadow)" data-bg="1"/>'
-      + (pg.pattern ? '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="18" fill="url(#bpat)" pointer-events="none"/>' : '')
+      + (page().free
+        ? '<rect x="-60000" y="-60000" width="120000" height="120000" fill="' + pg.paper + '" data-bg="1"/>' + (pg.pattern ? '<rect x="-60000" y="-60000" width="120000" height="120000" fill="url(#bpat)" pointer-events="none"/>' : '')
+        : '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="18" fill="' + pg.paper + '" filter="url(#bshadow)" data-bg="1"/>'
+      + (pg.pattern ? '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="18" fill="url(#bpat)" pointer-events="none"/>' : ''))
       + (pg.extra || '');
     if (logoSrc()) { const lb = logoBox(); s += '<image href="' + logoSrc() + '" x="' + lb.x + '" y="' + lb.y + '" width="' + lb.w + '" height="' + lb.h + '" opacity="' + (board().bg === 'dark' ? 0.022 : LOGO_OPACITY) + '"' + (board().bg === 'dark' ? ' style="filter:brightness(0) invert(1)"' : '') + ' preserveAspectRatio="xMidYMid meet" pointer-events="none"/>'; }
     objs().forEach((o, i) => { s += objSVG(o, i); });
@@ -1669,7 +1673,7 @@
     $('bvName').value = board().name;
     try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) { alert('This board is too full to save in this browser. Try removing an image or using smaller screenshots.'); return false; }
     setStatus(); renderLibrary();
-    if (flash) { const b = $('bvSave'); b.textContent = 'Saved ✓'; setTimeout(() => b.textContent = 'Save', 1400); }
+    if (flash) { const b = $('bvSave'); b.textContent = 'Saved ‚úì'; setTimeout(() => b.textContent = 'Save', 1400); }
     return true;
   }
   function fillSelect() {
@@ -1717,11 +1721,11 @@
   const lib = $('bvLib');
   function renderLibrary() {
     const full = data.boards.length >= MAX_BOARDS;
-    lib.innerHTML = '<div class="bv-lib-head"><span class="bv-eyebrow">SAVED BOARDS · ' + data.boards.length + '/' + MAX_BOARDS + '</span>'
+    lib.innerHTML = '<div class="bv-lib-head"><span class="bv-eyebrow">SAVED BOARDS ¬∑ ' + data.boards.length + '/' + MAX_BOARDS + '</span>'
       + '<button class="bv-libnew" id="bvNew"' + (full ? ' disabled title="You have 15 boards. Delete one to make room."' : '') + '>+ New board</button></div>'
       + (full ? '<div class="bv-libfull">15 boards is the limit. Delete one to make a new board.</div>' : '')
       + data.boards.map((b, i) => '<div class="bv-lib-row' + (i === data.cur ? ' cur' : '') + '" data-i="' + i + '">'
-        + '<button class="bv-lib-open" data-i="' + i + '"><span class="bv-lib-name">' + esc(b.name || 'Untitled board') + '</span><span class="bv-lib-when"><span class="bv-lib-type">' + esc(b.type || TYPES[0]) + '</span> · ' + ((b.pages && b.pages.length > 1) ? b.pages.length + ' pages · ' : '') + (i === data.cur && isDirty() ? 'Unsaved changes' : fmtWhen(b.savedAt)) + '</span></button>'
+        + '<button class="bv-lib-open" data-i="' + i + '"><span class="bv-lib-name">' + esc(b.name || 'Untitled board') + '</span><span class="bv-lib-when"><span class="bv-lib-type">' + esc(b.type || TYPES[0]) + '</span> ¬∑ ' + ((b.pages && b.pages.length > 1) ? b.pages.length + ' pages ¬∑ ' : '') + (i === data.cur && isDirty() ? 'Unsaved changes' : fmtWhen(b.savedAt)) + '</span></button>'
         + '<button class="bv-lib-act" data-dup="' + i + '" title="Duplicate"' + (full ? ' disabled' : '') + '>Copy</button>'
         + '<button class="bv-lib-act del" data-del="' + i + '" title="Delete">Delete</button></div>').join('');
     lib.querySelector('#bvNew').addEventListener('click', () => {
@@ -1914,13 +1918,19 @@
   }
   async function renderCanvas(area, scale) {
     if (document.fonts) { try { await Promise.all(Object.values(FONTS).map(f => document.fonts.load('400 32px ' + f.css))); } catch(e) {} await document.fonts.ready; }
+    const free = !!page().free;
+    if (!area && free) area = contentArea(60);
     const a = area || { x:0, y:0, w:W, h:H };
-    const c = document.createElement('canvas'); c.width = Math.round(a.w * scale); c.height = Math.round(a.h * scale);
+    scale = Math.min(scale, 12000 / Math.max(a.w, a.h));
+    const c = document.createElement('canvas'); c.aw = a.w; c.ah = a.h; c.width = Math.round(a.w * scale); c.height = Math.round(a.h * scale);
     const ctx = c.getContext('2d');
     ctx.scale(scale, scale); ctx.translate(-a.x, -a.y);
     const pg = PAGES[board().bg] || PAGES.dots;
-    ctx.fillStyle = pg.paper; ctx.fillRect(0, 0, W, H);
-    if (pg.draw) { ctx.save(); pg.draw(ctx); ctx.restore(); }
+    ctx.fillStyle = pg.paper; if (free) ctx.fillRect(a.x, a.y, a.w, a.h); else ctx.fillRect(0, 0, W, H);
+    if (pg.draw && free && pg.pattern && !pg.extra) {
+      /* repeat the page pattern across the whole open canvas area (tile size keeps every pattern lined up) */
+      for (let tx = Math.floor(a.x / 1920) * 1920; tx < a.x + a.w; tx += 1920) for (let ty = Math.floor(a.y / 960) * 960; ty < a.y + a.h; ty += 960) { ctx.save(); ctx.translate(tx, ty); pg.draw(ctx); ctx.restore(); }
+    } else if (pg.draw) { ctx.save(); pg.draw(ctx); ctx.restore(); }
     if (logoSrc()) {
       const im = await loadImg(logoSrc());
       if (im) { const lb = logoBox(), k = Math.min(lb.w / im.width, lb.h / im.height), dw = im.width * k, dh = im.height * k;
@@ -1965,7 +1975,7 @@
   }
   function fileBase() { const d = new Date(); return ((board().name || 'WMHQ board').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'WMHQ-board') + '-' + d.toISOString().slice(0,10); }
   function download(blob, name) { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
-  function makePDF(imgs, wPt, hPt) {
+  function makePDF(imgs, dW, dH) {
     const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
     const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
     push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
@@ -1977,6 +1987,7 @@
     imgs.forEach((im, i) => {
       const pn = 3 + i * 3, xn = pn + 1, cn = pn + 2;
       const bin = atob(im.data.split(',')[1]); const bytes = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+      const wPt = im.pw || dW, hPt = im.ph || dH;
       obj(pn, () => push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + wPt + ' ' + hPt + '] /Resources << /XObject << /Im0 ' + xn + ' 0 R >> >> /Contents ' + cn + ' 0 R >>'));
       obj(xn, () => { push('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + bytes.length + ' >>\nstream\n'); push(bytes); push('\nendstream'); });
       const content = 'q ' + wPt + ' 0 0 ' + hPt + ' 0 0 cm /Im0 Do Q';
@@ -1994,7 +2005,7 @@
       const c = await renderCanvas(area, 2);
       const name = fileBase() + (board().pages.length > 1 ? '-page-' + (board().cp + 1) : '') + (area ? '-area' : '');
       if (kind === 'png') c.toBlob(b => download(b, name + '.png'), 'image/png');
-      else download(makePDF([{ data:c.toDataURL('image/jpeg', 0.92), w:c.width, h:c.height }], Math.round(c.width / 2 * 0.75), Math.round(c.height / 2 * 0.75)), name + '.pdf');
+      else download(makePDF([{ data:c.toDataURL('image/jpeg', 0.92), w:c.width, h:c.height }], Math.round(c.aw * 0.75), Math.round(c.ah * 0.75)), name + '.pdf');
     } catch(err) { alert('Export failed. If this board has a very large image, try removing it and exporting again.'); }
     S.sel = prevSel; render();
   }
@@ -2007,7 +2018,7 @@
       for (let i = 0; i < b.pages.length; i++) {
         b.cp = i; resolveLinks(); render();
         const c = await renderCanvas(null, 2);
-        imgs.push({ data:c.toDataURL('image/jpeg', 0.9), w:c.width, h:c.height });
+        imgs.push({ data:c.toDataURL('image/jpeg', 0.9), w:c.width, h:c.height, pw:Math.round(c.aw * 0.75), ph:Math.round(c.ah * 0.75) });
       }
       download(makePDF(imgs, 1440, 810), fileBase() + '-all-pages.pdf');
     } catch(err) { alert('Export failed. If a page has very large images, try removing one and exporting again.'); }
@@ -2105,15 +2116,20 @@
     .then(r => r.json()).then(j => {
       const txt = j && j[0] === 'SUCCESS' && j[1] && j[1][0] && j[1][0][1] && j[1][0][1][0];
       if (!txt || !txt.trim()) return;
-      const place = () => {
+      const place = async () => {
+        if (act) { setTimeout(place, 300); return; }
+        if (document.fonts) { try { await document.fonts.load('400 40px ' + fontCSS('hand')); } catch(e) {} }
         if (act) { setTimeout(place, 300); return; }
         const live = strokes.filter(o => objs().includes(o)); if (live.length !== strokes.length) return;
-        const fs = Math.max(20, Math.min(160, Math.round((y1 - y0) / rows * 1.05)));
-        const mc = document.createElement('canvas').getContext('2d'); mc.font = '400 ' + fs + 'px ' + fontCSS('hand');
-        const bw = Math.max(x1 - x0 + 36, rows === 1 ? mc.measureText(txt.trim()).width + 44 : 0);
+        /* match the size of what was written: fit the text to the width of the handwriting, never taller than it */
+        const mc = document.createElement('canvas').getContext('2d'); mc.font = '400 100px ' + fontCSS('hand');
+        const per = mc.measureText(txt.trim()).width / 100 || 1;
+        const fs = Math.max(12, Math.min(200, Math.round(Math.min((x1 - x0) * rows / per, (y1 - y0) / rows * 0.95))));
+        const bw = Math.max(x1 - x0, rows === 1 ? per * fs : 0) + 36 + Math.ceil(fs * 0.4);
+        const th = rows * fs * 1.35;
         snap();
         page().objs = objs().filter(o => !strokes.includes(o));
-        objs().push({ t:'text', x:r1(x0 - 18), y:r1(y0 - 14), bw:Math.ceil(bw), bh:Math.ceil(rows * fs * 1.35 + 28), html:txt.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;'), c:strokes[0].c, f:'none', fs, ff:'hand', bd:false, bdw:3 });
+        objs().push({ t:'text', x:r1(x0 - 18), y:r1((y0 + y1) / 2 - th / 2 - 14), bw:Math.ceil(bw), bh:Math.ceil(th + 28), html:txt.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;'), c:strokes[0].c, f:'none', fs, ff:'hand', bd:false, bdw:3 });
         S.sel = -1; render(); save();
       };
       place();
@@ -2142,12 +2158,25 @@
     $('bvZVal').textContent = Math.round(W / V.w * 100) + '%';
   }
   function zoomAt(factor, cx, cy) {
-    const nw = Math.min(MAXW, Math.max(MINW, V.w / factor)), k = nw / V.w;
+    const nw = Math.min(page().free ? W * 30 : MAXW, Math.max(MINW, V.w / factor)), k = nw / V.w;
     if (cx == null) { cx = V.x + V.w / 2; cy = V.y + V.h / 2; }
     V.x = cx - (cx - V.x) * k; V.y = cy - (cy - V.y) * k; V.w = nw; V.h = nw * H / W;
     setView();
   }
-  function fitView() { V.x = 0; V.y = 0; V.w = W; V.h = H; setView(); }
+  /* open canvas: the area that holds everything on the page (null when the page is empty) */
+  function contentArea(m) {
+    const os = objs(); if (!os.length) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    os.forEach(o => { const b = bbox(o); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+    if (!isFinite(x0 + y0 + x1 + y1)) return null;
+    return { x:Math.floor(x0 - m), y:Math.floor(y0 - m), w:Math.ceil(x1 - x0 + m * 2), h:Math.ceil(y1 - y0 + m * 2) };
+  }
+  function fitView() {
+    const a = page().free && contentArea(80);
+    if (a) { const w = Math.max(a.w, a.h * W / H, 480), h = w * H / W; V.x = a.x + a.w / 2 - w / 2; V.y = a.y + a.h / 2 - h / 2; V.w = w; V.h = h; }
+    else { V.x = 0; V.y = 0; V.w = W; V.h = H; }
+    setView();
+  }
   const unitsPerPx = () => 1 / svg.getScreenCTM().a;
   svg.addEventListener('wheel', e => {
     e.preventDefault();
@@ -2169,6 +2198,7 @@
   $('bvZOut').addEventListener('click', () => zoomAt(0.8));
   $('bvZVal').addEventListener('click', fitView);
   $('bvZFit').addEventListener('click', fitView);
+  $('bvFree').addEventListener('click', () => { if (S.editing >= 0) stopEditing(); page().free = !page().free; save(); render(); fitView(); });
 
   let spaceDown = false, pan = null;
   const typing = t => t.closest && t.closest('input:not([type]), input[type="text"], select, [contenteditable="true"]');
@@ -2219,7 +2249,7 @@
   }
   function renderPList() {
     const b = board();
-    plist.innerHTML = '<div class="bv-eyebrow" style="padding:6px 8px 8px">PAGES · ' + b.pages.length + '</div>'
+    plist.innerHTML = '<div class="bv-eyebrow" style="padding:6px 8px 8px">PAGES ¬∑ ' + b.pages.length + '</div>'
       + b.pages.map((pg, i) => '<div class="bv-prow' + (i === b.cp ? ' cur' : '') + '">'
         + '<button class="bv-popen" data-i="' + i + '"><span class="bv-pnum">' + (i + 1) + '</span><span class="bv-pname">' + esc(pg.name || 'Page ' + (i + 1)) + '</span><span class="bv-pmeta">' + pg.objs.length + ' item' + (pg.objs.length === 1 ? '' : 's') + '</span></button>'
         + '<button class="bv-pact" data-up="' + i + '" title="Move up"' + (i === 0 ? ' disabled' : '') + '>&#8593;</button>'
