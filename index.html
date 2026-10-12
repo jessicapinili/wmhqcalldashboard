@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/sites/2147575052/images/721bb18-da18-83b6-8184-60f2a8f2_Base_44_Logos_3_.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;600&family=Pixelify+Sans:wght@400;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;600&family=Pixelify+Sans:wght@400;600;700&family=Instrument+Serif:ital@0;1&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -210,6 +210,7 @@
   .tool svg { width:18px; height:18px; }
   .tool:hover { background:#f6f0f0; }
   .tool.on { background:#270707; color:#fff; }
+  .tool.neat-on { background:#A2122A; color:#fff; }
   .sw { width:22px; height:22px; border-radius:50%; border:1px solid rgba(0,0,0,0.12); cursor:pointer; padding:0; }
   .sw.on { outline:2px solid #270707; outline-offset:2px; }
   .sw.none { background:#fff linear-gradient(135deg, transparent 45%, #A2122A 45%, #A2122A 55%, transparent 55%); }
@@ -965,6 +966,7 @@
       <button class="tool" data-tool="num" title="Numbered marker (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10.5 9l2-1.5V16.5M10 16.5h5"/></svg></button>
       <button class="tool" data-tool="sticky" title="Sticky note (S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg></button>
       <label class="tool" title="Add image (or paste a screenshot)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg><input type="file" id="bvImg" accept="image/*" hidden></label>
+      <button class="tool" id="bvNeat" title="Neat writing: write with the pen, pause, and it turns into tidy handwritten text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c2-6 4-9 5-9s0 7 1.5 7S12 11 13 11s.5 4 2 4 2-2 3-2"/><path d="M18 3v4M16 5h4"/></svg></button>
       <button class="tool" data-tool="erase" title="Eraser (E)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 20h12"/><path d="M4 15l9-9 6 6-8 8H8z"/></svg></button>
     </div>
     <div class="bv-group">
@@ -1063,7 +1065,8 @@
     dm:        { label:'DM Sans',         css:"'DM Sans', sans-serif" },
     pixel:     { label:'Pixel',           css:"'Pixelify Sans', monospace" },
     times:     { label:'Times New Roman', css:"'Times New Roman', Times, serif" },
-    editorial: { label:'Editorial serif', css:"'Instrument Serif', 'Times New Roman', serif" }
+    editorial: { label:'Editorial serif', css:"'Instrument Serif', 'Times New Roman', serif" },
+    hand:      { label:'Handwriting',     css:"'Caveat', 'Bradley Hand', cursive" }
   };
   const fontCSS = k => (FONTS[k] || FONTS.dm).css;
   const S = { ff:'dm', note:'#F9E6AB', tool:'pen', color:'#A2122A', fill:'none', size:4, font:36, border:false, sel:-1, editing:-1, undo:[], redo:[] };
@@ -1368,9 +1371,18 @@
     if (!act) return;
     const p = pt(e);
     if (act.k === 'draw') {
-      const l = act.o.pts[act.o.pts.length - 1];
-      if (Math.hypot(p[0] - l[0], p[1] - l[1]) < 2) return;
-      act.o.pts.push(p); act.el.setAttribute('d', pathD(act.o.pts));
+      /* use every tablet sample (not just one per frame) and lightly steady the line */
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      const sm = act.sm || (act.sm = act.o.pts[0].slice());
+      let added = false;
+      (evs.length ? evs : [e]).forEach(ev => {
+        const q = pt(ev); act.raw = q;
+        sm[0] += (q[0] - sm[0]) * 0.5; sm[1] += (q[1] - sm[1]) * 0.5;
+        const l = act.o.pts[act.o.pts.length - 1];
+        if (Math.hypot(sm[0] - l[0], sm[1] - l[1]) < 0.8) return;
+        act.o.pts.push([r1(sm[0]), r1(sm[1])]); added = true;
+      });
+      if (added) act.el.setAttribute('d', pathD(act.o.pts));
     } else if (act.k === 'rect') {
       act.o = { t:'rect', x:Math.min(act.sx, p[0]), y:Math.min(act.sy, p[1]), bw:Math.abs(p[0] - act.sx), bh:Math.abs(p[1] - act.sy), c:S.color, f:S.fill, w:S.size, rx:14 };
       act.el.innerHTML = objSVG(act.o, -1);
@@ -1439,7 +1451,11 @@
   function finish() {
     if (!act) return;
     const a = act; act = null;
-    if (a.k === 'draw') { snap(); objs().push(a.o); a.el.remove(); render(); save(); }
+    if (a.k === 'draw') {
+      if (a.raw) { const l = a.o.pts[a.o.pts.length - 1]; if (Math.hypot(a.raw[0] - l[0], a.raw[1] - l[1]) > 0.5) a.o.pts.push(a.raw); }
+      snap(); objs().push(a.o); a.el.remove(); render(); save();
+      if (NEAT.on && a.o.a === 1) { NEAT.batch.push(a.o); clearTimeout(NEAT.t); NEAT.t = setTimeout(neatConvert, 1100); }
+    }
     else if (a.k === 'aend') { showSnapDots(null); save(); render(); }
     else if ((a.k === 'rect' || a.k === 'arrow') && a.o) {
       a.el.remove(); showSnapDots(null);
@@ -2063,6 +2079,46 @@
 
   /* ---------- helpers ---------- */
   function isLight(hex) { const h = (hex || '#000').replace('#',''); if (h.length < 6) return false; const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16); return (0.299*r + 0.587*g + 0.114*b) > 170; }
+
+  /* ---------- neat writing: pen strokes -> tidy handwritten text ---------- */
+  const NEAT = { on:false, batch:[], t:null, warned:false };
+  try { NEAT.on = localStorage.getItem('wmhq-neat') === '1'; } catch(e) {}
+  $('bvNeat').classList.toggle('neat-on', NEAT.on);
+  $('bvNeat').addEventListener('click', () => {
+    NEAT.on = !NEAT.on; NEAT.batch = []; clearTimeout(NEAT.t);
+    $('bvNeat').classList.toggle('neat-on', NEAT.on);
+    try { localStorage.setItem('wmhq-neat', NEAT.on ? '1' : '0'); } catch(e) {}
+    if (NEAT.on && S.tool !== 'pen') setTool('pen');
+  });
+  svg.addEventListener('pointerdown', () => clearTimeout(NEAT.t), true);
+  function neatConvert() {
+    if (act) { NEAT.t = setTimeout(neatConvert, 400); return; }
+    const strokes = NEAT.batch.filter(o => objs().includes(o)); NEAT.batch = [];
+    if (!strokes.length) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const boxes = strokes.map(o => { let a = Infinity, b = -Infinity; o.pts.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); a = Math.min(a, q[1]); b = Math.max(b, q[1]); }); return { c:(a + b) / 2, h:b - a }; });
+    const hs = boxes.map(b => b.h).sort((a, b) => a - b), mh = Math.max(16, hs[Math.floor(hs.length / 2)]);
+    const cs = boxes.map(b => b.c).sort((a, b) => a - b); let rows = 1; for (let k = 1; k < cs.length; k++) if (cs[k] - cs[k-1] > mh * 1.3) rows++;
+    const ink = strokes.map(o => [o.pts.map(q => Math.round(q[0] - x0)), o.pts.map(q => Math.round(q[1] - y0))]);
+    fetch('https://inputtools.google.com/request?itc=en-t-i0-handwrit&app=demopage', { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ options:'enable_pre_space', requests:[{ writing_guide:{ writing_area_width:Math.ceil(x1 - x0) + 1, writing_area_height:Math.ceil(y1 - y0) + 1 }, ink, language:'en' }] }) })
+    .then(r => r.json()).then(j => {
+      const txt = j && j[0] === 'SUCCESS' && j[1] && j[1][0] && j[1][0][1] && j[1][0][1][0];
+      if (!txt || !txt.trim()) return;
+      const place = () => {
+        if (act) { setTimeout(place, 300); return; }
+        const live = strokes.filter(o => objs().includes(o)); if (live.length !== strokes.length) return;
+        const fs = Math.max(20, Math.min(160, Math.round((y1 - y0) / rows * 1.05)));
+        const mc = document.createElement('canvas').getContext('2d'); mc.font = '400 ' + fs + 'px ' + fontCSS('hand');
+        const bw = Math.max(x1 - x0 + 36, rows === 1 ? mc.measureText(txt.trim()).width + 44 : 0);
+        snap();
+        page().objs = objs().filter(o => !strokes.includes(o));
+        objs().push({ t:'text', x:r1(x0 - 18), y:r1(y0 - 14), bw:Math.ceil(bw), bh:Math.ceil(rows * fs * 1.35 + 28), html:txt.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;'), c:strokes[0].c, f:'none', fs, ff:'hand', bd:false, bdw:3 });
+        S.sel = -1; render(); save();
+      };
+      place();
+    }).catch(() => { if (!NEAT.warned) { NEAT.warned = true; alert('Neat writing needs an internet connection. Your handwriting was left as you wrote it.'); } });
+  }
 
   /* ---------- sticky note colours ---------- */
   $('bvNoteSw').innerHTML = NOTE_COLOURS.map(c => c === 'ios' ? '<button class="sw ios" data-c="ios" title="iPhone-style note"></button>' : '<button class="sw" data-c="' + c + '" title="Sticky note ' + c + '" style="background:' + c + '"></button>').join('');
